@@ -1,8 +1,9 @@
 #include "rpc.h"
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "lock_server.h"
 
 #include "jsl_log.h"
