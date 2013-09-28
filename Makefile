@@ -15,7 +15,7 @@ else
   MACFLAGS=
 endif
 LDFLAGS = -L. -L/usr/local/lib
-LDLIBS = -lpthread 
+LDLIBS = -lpthread
 ifeq ($(LAB2GE),1)
   ifeq ($(shell uname -s),Darwin)
     ifeq ($(shell sw_vers -productVersion | sed -e "s/.*\(10\.[0-9]\).*/\1/"),10.6)
@@ -124,13 +124,13 @@ fuse.o: fuse.cc
 
 clean_files=rpc/rpctest rpc/*.o rpc/*.d rpc/librpc.a *.o *.d yfs_client extent_server lock_server lock_tester lock_demo rpctest test-lab-3-b test-lab-3-c rsm_tester
 .PHONY: clean handin
-clean: 
-	rm $(clean_files) -rf 
+clean:
+	rm $(clean_files) -rf
 
 handin_ignore=$(clean_files) core* *log
 handin_file=$(shell whoami)-lab$(LAB).tgz
 labdir=$(shell basename $(PWD))
-handin: 
+handin:
 	@if test -f stop.sh; then ./stop.sh > /dev/null 2>&1 | echo ""; fi
 	@bash -c "cd ../; tar -X <(tr ' ' '\n' < <(echo '$(handin_ignore)')) -czvf $(handin_file) $(labdir); mv $(handin_file) $(labdir); cd $(labdir)"
 	@echo Please email $(handin_file) to 6.824-submit@pdos.csail.mit.edu
