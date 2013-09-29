@@ -9,6 +9,8 @@
 #include "extent_protocol.h"
 #include "lock.hpp"
 
+#define ROOTDIR 0x00000001
+
 struct file_inode {
   extent_protocol::attr       attributes;
   extent_protocol::extentid_t id;

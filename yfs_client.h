@@ -1,11 +1,20 @@
 #ifndef yfs_client_h
 #define yfs_client_h
 
+#include <list>
 #include <string>
-//#include "yfs_protocol.h"
-#include "extent_client.h"
 #include <vector>
 
+//#include "yfs_protocol.h"
+#include "extent_client.h"
+#include "StringTokenizer.h"
+
+// ELEMENTSEPERATOR - what seperates elements in a inode, eg /sub_dir1/sub_dir2/file1/file2
+// INUMSEPERATOR    - what seperates an elements name from its inum, eg inum@elementname
+// So an example of a directory listing would be: 1234@subdirectory/1235@filename/
+
+#define ELEMENTSEPERATOR "/"
+#define INUMSEPERATOR    "@"
 
 class yfs_client {
   extent_client *ec;
@@ -43,6 +52,12 @@ class yfs_client {
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+
+  // will create a file or directory depending on the inum
+  int create(inum, inum, const char*);
+
+  std::list<yfs_client::dirent*>* parsebuf(std::string);
+  dirent* parseDirent(std::string);
 };
 
-#endif 
+#endif

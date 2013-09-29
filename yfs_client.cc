@@ -89,5 +89,33 @@ yfs_client::getdir(inum inum, dirinfo &din)
   return r;
 }
 
+int yfs_client::create(yfs_client::inum inum, yfs_client::inum parent, const char* buf) {
+  std::string parent_buf;
 
+  // verify that the parent directory actually exists
+  if (ec->get(inum, parent_buf) != extent_protocol::OK)
+    return NOENT;
 
+  // ok the parent exists
+
+  return 0;
+}
+
+// #define ELEMENTSEPERATOR /
+// #define INUMSEPERATOR    @
+
+std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
+  std::list<yfs_client::dirent*>* entries = new std::list<yfs_client::dirent*>();
+
+  std::string delimiter = ELEMENTSEPERATOR;
+  StringTokenizer strtok(buf, delimiter);
+
+  while (strtok.hasMoreTokens())
+    entries->push_back(parseDirent(strtok.nextToken()));
+
+  return entries;
+}
+
+yfs_client::dirent* yfs_client::parseDirent(std::string value) {
+  return new dirent();
+}

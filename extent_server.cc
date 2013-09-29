@@ -9,8 +9,11 @@
 
 #include "extent_server.h"
 
-extent_server::extent_server() {}
-
+extent_server::extent_server() {
+  int ignore;
+  std::string root_string = "";
+  put(ROOTDIR, root_string, ignore);
+}
 
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
