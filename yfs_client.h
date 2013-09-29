@@ -7,7 +7,6 @@
 
 //#include "yfs_protocol.h"
 #include "extent_client.h"
-#include "StringTokenizer.h"
 
 // ELEMENTSEPERATOR - what seperates elements in a inode, eg /sub_dir1/sub_dir2/file1/file2
 // INUMSEPERATOR    - what seperates an elements name from its inum, eg inum@elementname
