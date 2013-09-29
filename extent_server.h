@@ -12,7 +12,7 @@
 struct file_inode {
   extent_protocol::attr       attributes;
   extent_protocol::extentid_t id;
-  std::string                 file_name;
+  std::string                 file_buf;
 };
 
 class extent_server {
@@ -31,10 +31,3 @@ private:
 };
 
 #endif
-
-
-
-
-
-
-
