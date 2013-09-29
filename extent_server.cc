@@ -1,19 +1,33 @@
 // the extent server implementation
 
-#include "extent_server.h"
+#include <fcntl.h>
 #include <sstream>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include "extent_server.h"
 
 extent_server::extent_server() {}
 
 
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
-  // You fill this in for Lab 2.
+  _sync_root.lock();
+
+  file_inode* new_file = (file_inode*)malloc(sizeof(file_inode));
+
+  new_file->id = id;
+  new_file->file_name = buf;
+  new_file->attributes.size = buf.length();
+
+  // god forbid we use good code like time_t
+  new_file->attributes.atime = time(NULL);
+  new_file->attributes.ctime = time(NULL);
+  new_file->attributes.mtime = time(NULL);
+
+  _sync_root.unlock();
   return extent_protocol::IOERR;
 }
 
@@ -41,4 +55,3 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
   // You fill this in for Lab 2.
   return extent_protocol::IOERR;
 }
-
