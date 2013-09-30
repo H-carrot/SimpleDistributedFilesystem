@@ -119,6 +119,10 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
 
   parent_buf.append(createBuffElement(inum, buf));
 
+  printf("\n\nNew buf:");
+  printf(parent_buf.c_str());
+  printf("\n\n");
+
   // generate an inum for our new file
   inum = random();
   inum = inum | 0x80000000; // set thhe 31 bit correctly
