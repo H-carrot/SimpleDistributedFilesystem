@@ -94,11 +94,13 @@ yfs_client::getdir(inum inum, dirinfo &din)
 int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
 
-  printf("\n\nCreating file.\n\n");
+  printf("\n\nCreating file, parent num: %llu.\n\n", parent);
 
   // verify that the parent directory actually exists
-  if (ec->get(inum, parent_buf) != extent_protocol::OK)
-    return NOENT;
+  if (ec->get(inum, parent_buf) != extent_protocol::OK) {
+      printf("\n\nParent doesnt exist\n\n");
+      return NOENT;
+  }
 
   // ok the parent exists
   std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
@@ -107,9 +109,13 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
        it != contents->end();
        it++) {
-    if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum))
+    if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum)) {
+      printf("\n\nError file exists.\n\n");
       return IOERR;
+    }
   }
+
+  printf("\n\nDone searching\n\n");
 
   // ok there are no files with the same name in this directory
   // we can go ahead and append our new file now to the parent
