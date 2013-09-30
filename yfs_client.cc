@@ -91,20 +91,53 @@ yfs_client::getdir(inum inum, dirinfo &din)
   return r;
 }
 
-int yfs_client::create(yfs_client::inum inum, yfs_client::inum parent, const char* buf) {
+int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
+
+  printf("\n\nCreating file.\n\n");
 
   // verify that the parent directory actually exists
   if (ec->get(inum, parent_buf) != extent_protocol::OK)
     return NOENT;
 
   // ok the parent exists
+  std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
 
-  return 0;
+  // check for duplicate names
+  for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
+       it != contents->end();
+       it++) {
+    if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum))
+      return IOERR;
+  }
+
+  // ok there are no files with the same name in this directory
+  // we can go ahead and append our new file now to the parent
+  // add the seperator if there are multiple items in here
+  if (contents->size() !=0 )
+    parent_buf.append(ELEMENTSEPERATOR);
+
+  parent_buf.append(createBuffElement(inum, buf));
+
+  // generate an inum for our new file
+  inum = random();
+  inum = inum | 0x80000000; // set thhe 31 bit correctly
+
+  ec->put(inum, "");
+  ec->put(parent, parent_buf);
+
+  return OK;
 }
 
-// #define ELEMENTSEPERATOR /
-// #define INUMSEPERATOR    @
+std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf) {
+  std::stringstream stream;
+
+  stream << inum;
+  stream << INUMSEPERATOR;
+  stream << buf;
+
+  return stream.str();
+}
 
 std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
   std::list<yfs_client::dirent*>* entries = new std::list<yfs_client::dirent*>();
@@ -119,5 +152,13 @@ std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
 }
 
 yfs_client::dirent* yfs_client::parseDirent(std::string value) {
-  return new dirent();
+  std::string delimiter = INUMSEPERATOR;
+  StringTokenizer strtok(value, delimiter);
+
+  dirent* entry = new dirent();
+
+  entry->inum = n2i(strtok.nextToken());
+  entry->name = strtok.nextToken();
+
+  return entry;
 }

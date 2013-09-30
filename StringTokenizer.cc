@@ -56,7 +56,7 @@ StringTokenizer::StringTokenizer(const std::string& _str, const std::string& _de
 
 int StringTokenizer::countTokens()
 {
-   int num_tokens        = 0;
+   int num_tokens = 0;
 
    if (token_str.length() > 0)
    {

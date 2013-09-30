@@ -52,9 +52,9 @@ class yfs_client {
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
 
-  // will create a file or directory depending on the inum
-  int create(inum, inum, const char*);
+  int createFile(inum &, inum, const char*);
 
+  std::string createBuffElement(yfs_client::inum, const char*);
   std::list<yfs_client::dirent*>* parsebuf(std::string);
   dirent* parseDirent(std::string);
 };
