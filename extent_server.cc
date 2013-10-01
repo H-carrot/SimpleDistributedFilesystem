@@ -67,6 +67,7 @@ int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 
   printf("\n\nFound.");
 
+  printf("\n\nReturning buff: %s\n\n", it->second->file_buf.c_str());
   // return the buffer value
   buf = it->second->file_buf;
 
@@ -75,6 +76,7 @@ int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 
   _sync_root.unlock();
 
+  printf("\nGet returning OK\n");
   return extent_protocol::OK;
 }
 

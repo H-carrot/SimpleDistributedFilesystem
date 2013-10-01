@@ -95,13 +95,14 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   std::string parent_buf;
 
   printf("\n\nCreating file, parent num: %llu.\n\n", parent);
-
+  setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent doesnt exist\n\n");
       return NOENT;
   }
 
+  printf("\n\nParent exists...");
   // ok the parent exists
   std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
 
@@ -125,7 +126,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
 
   // generate an inum for our new file
   inum = random();
-  inum = inum | 0x80000000; // set thhe 31 bit correctly
+  inum = inum | 0x80000000; // set the 31 bit correctly
 
   parent_buf.append(createBuffElement(inum, buf));
 
@@ -151,12 +152,23 @@ std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf
 
 std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
   std::list<yfs_client::dirent*>* entries = new std::list<yfs_client::dirent*>();
+how
+  printf("\n\nAttempting parse: %s\n\n", buf.c_str());
 
   std::string delimiter = ELEMENTSEPERATOR;
+
+  printf("\nDelimiter: %s\n", delimiter.c_str());
   StringTokenizer strtok(buf, delimiter);
 
-  while (strtok.hasMoreTokens())
+  printf("\n\nStarting string tok...del\n\n");
+
+  while (strtok.hasMoreTokens()) {
+    printf("\n\nStarting parse\n\n");
     entries->push_back(parseDirent(strtok.nextToken()));
+    printf("\nParsed line...\n");
+  }
+
+  printf("\nDone parsing...\n");
 
   return entries;
 }

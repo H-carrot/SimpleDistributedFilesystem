@@ -224,10 +224,14 @@ fuseserver_createhelper(fuse_ino_t parent, const char *name,
   yfs_client::inum newInum;
 
   // try to add
+  printf("\n\nAttempting create.");
   if (yfs->createFile(newInum, parent, name) != yfs_client::OK)
     return yfs_client::NOENT; // something broke, maybe duplicate
 
+  printf("\n\nAdd correct, inum: %llu\n\n", newInum);
+
   e->ino = newInum;
+  getattr(newInum, e->attr);
 
   return yfs_client::OK;
 }
