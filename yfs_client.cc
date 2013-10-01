@@ -97,7 +97,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   printf("\n\nCreating file, parent num: %llu.\n\n", parent);
 
   // verify that the parent directory actually exists
-  if (ec->get(inum, parent_buf) != extent_protocol::OK) {
+  if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent doesnt exist\n\n");
       return NOENT;
   }
@@ -123,15 +123,15 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   if (contents->size() !=0 )
     parent_buf.append(ELEMENTSEPERATOR);
 
+  // generate an inum for our new file
+  inum = random();
+  inum = inum | 0x80000000; // set thhe 31 bit correctly
+
   parent_buf.append(createBuffElement(inum, buf));
 
   printf("\n\nNew buf:");
   printf(parent_buf.c_str());
   printf("\n\n");
-
-  // generate an inum for our new file
-  inum = random();
-  inum = inum | 0x80000000; // set thhe 31 bit correctly
 
   ec->put(inum, "");
   ec->put(parent, parent_buf);

@@ -23,6 +23,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 
   // a new id, let's add it
   if (it == _extent_map.end()) {
+    printf("\n\nNew put request for: %llu Value: %s", id, buf.c_str());
     file_inode* new_file = new file_inode();
 
     new_file->id = id;
@@ -37,6 +38,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
     _extent_map.insert(std::make_pair(id, new_file));
   } else {
     // the id already exists, let's update it's data
+    printf("\n\nUpdate put request for: %llu Value: %s", id, buf.c_str());
     it->second->file_buf = buf;
     it->second->attributes.size = buf.length();
 
@@ -52,13 +54,18 @@ int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 {
   _sync_root.lock();
 
+ printf("\n\nLooking up id: %llu", id);
+
   std::map<extent_protocol::extentid_t, file_inode*>::iterator it = _extent_map.find(id);
 
   if (it == _extent_map.end()) {
+     printf("\n\nNot found");
     // the id doesnt exist
     _sync_root.unlock();
     return extent_protocol::IOERR;
   }
+
+  printf("\n\nFound.");
 
   // return the buffer value
   buf = it->second->file_buf;
