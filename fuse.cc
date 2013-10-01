@@ -6,15 +6,16 @@
  * high-level interface only gives us complete paths.
  */
 
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <fuse_lowlevel.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 #include <string.h>
-#include <errno.h>
-#include <fcntl.h>
+#include <strings.h>
 #include <unistd.h>
-#include <arpa/inet.h>
+
 #include "lang/verify.h"
 #include "yfs_client.h"
 

@@ -12,8 +12,8 @@
 // INUMSEPERATOR    - what seperates an elements name from its inum, eg inum@elementname
 // So an example of a directory listing would be: 1234@subdirectory/1235@filename/
 
-#define ELEMENTSEPERATOR "/"
-#define INUMSEPERATOR    "@"
+#define ELEMENTSEPERATOR '/'
+#define INUMSEPERATOR    '@'
 
 class yfs_client {
   extent_client *ec;
@@ -40,8 +40,9 @@ class yfs_client {
   };
 
  private:
-  static std::string filename(inum);
   static inum n2i(std::string);
+  static std::string filename(inum);
+  static void split(const std::string &, char, std::list<std::string> &);
  public:
 
   yfs_client(std::string, std::string);

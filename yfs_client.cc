@@ -122,7 +122,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   // we can go ahead and append our new file now to the parent
   // add the seperator if there are multiple items in here
   if (contents->size() !=0 )
-    parent_buf.append(ELEMENTSEPERATOR);
+    parent_buf += ELEMENTSEPERATOR;
 
   // generate an inum for our new file
   inum = random();
@@ -150,22 +150,30 @@ std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf
   return stream.str();
 }
 
+ // string split code adapted from: http://stackoverflow.com/questions/236129/splitting-a-string-in-c
+void yfs_client::split(const std::string &s, char delim, std::list<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+}
+
 std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
   std::list<yfs_client::dirent*>* entries = new std::list<yfs_client::dirent*>();
-how
+  std::list<std::string> split_string;
+
   printf("\n\nAttempting parse: %s\n\n", buf.c_str());
 
-  std::string delimiter = ELEMENTSEPERATOR;
+  printf("\n Starting split...\n");
 
-  printf("\nDelimiter: %s\n", delimiter.c_str());
-  StringTokenizer strtok(buf, delimiter);
+  split(buf, ELEMENTSEPERATOR, split_string);
 
-  printf("\n\nStarting string tok...del\n\n");
-
-  while (strtok.hasMoreTokens()) {
-    printf("\n\nStarting parse\n\n");
-    entries->push_back(parseDirent(strtok.nextToken()));
-    printf("\nParsed line...\n");
+  for (std::list<std::string>::iterator it = split_string.begin();
+       it != split_string.end();
+       it++) {
+    printf("\nParsed line: %s\n", (*it).c_str());
+    entries->push_back(parseDirent(*it));
   }
 
   printf("\nDone parsing...\n");
@@ -174,13 +182,18 @@ how
 }
 
 yfs_client::dirent* yfs_client::parseDirent(std::string value) {
-  std::string delimiter = INUMSEPERATOR;
-  StringTokenizer strtok(value, delimiter);
+  std::list<std::string> split_string;
+
+  split(value, INUMSEPERATOR, split_string);
+  std::list<std::string>::iterator it = split_string.begin();
 
   dirent* entry = new dirent();
 
-  entry->inum = n2i(strtok.nextToken());
-  entry->name = strtok.nextToken();
+  entry->inum = n2i(*it);
+
+  it++;
+
+  entry->name = *it;
 
   return entry;
 }
