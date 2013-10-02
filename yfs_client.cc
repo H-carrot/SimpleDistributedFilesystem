@@ -94,7 +94,7 @@ yfs_client::getdir(inum inum, dirinfo &din)
 int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
 
-  printf("\n\nCreating file, parent num: %llu.\n\n", parent);
+  printf("\n\nCreating file, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
@@ -112,7 +112,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
        it++) {
     if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum)) {
       printf("\n\nError file exists.\n\n");
-      return IOERR;
+      return EEXIST;
     }
   }
 
@@ -138,6 +138,41 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   ec->put(parent, parent_buf);
 
   return OK;
+}
+
+void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
+  std::string parent_buf;
+  bool found = false;
+  inum = 0;
+
+  printf("\n\nLooking up file, parent num: %llu.\n\n", parent);
+
+  // verify that the parent directory actually exists
+  if (ec->get(parent, parent_buf) != extent_protocol::OK) {
+      printf("\n\nParent doesnt exist\n\n");
+      return;
+  }
+
+  // ok the parent exists
+  std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
+
+  // scan for the file, and grab the inum if we have it
+  for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
+       it != contents->end();
+       it++) {
+    if ((*it)->name.compare(buf) == 0) {
+      found = true;
+      inum = (*it)->inum;
+      break;
+    }
+  }
+
+  if (found)
+    printf("\n\nFound");
+  else
+    printf("Not Found");
+
+  //return found ? OK : NOENT;
 }
 
 std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf) {

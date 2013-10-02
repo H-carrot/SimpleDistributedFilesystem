@@ -282,13 +282,19 @@ fuseserver_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
   e.attr_timeout = 0.0;
   e.entry_timeout = 0.0;
   e.generation = 0;
-  bool found = false;
+  yfs_client::inum resource_inum = 0;
 
-  // You fill this in for Lab 2
-  if (found)
+  printf("\n\nAttempting lookup of parent %lu for %s", parent, name);
+
+  yfs->lookupResource(resource_inum, parent, name);
+
+  // ok the resource exists, lets get the attributes for it
+  if (resource_inum != 0) {
+    getattr(resource_inum, e.attr);
     fuse_reply_entry(req, &e);
-  else
+  } else {
     fuse_reply_err(req, ENOENT);
+  }
 }
 
 
