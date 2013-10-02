@@ -54,7 +54,8 @@ class yfs_client {
   int getdir(inum, dirinfo &);
 
   int createFile(inum &, inum, const char*);
-  void lookupResource(yfs_client::inum &, yfs_client::inum, const char*);
+  int lookupResource(yfs_client::inum &, yfs_client::inum, const char*);
+  int getDirContents(yfs_client::inum, std::string &);
 
   std::string createBuffElement(yfs_client::inum, const char*);
   std::list<yfs_client::dirent*>* parsebuf(std::string);

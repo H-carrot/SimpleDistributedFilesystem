@@ -140,7 +140,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   return OK;
 }
 
-void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
+int  yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
   bool found = false;
   inum = 0;
@@ -150,7 +150,7 @@ void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent,
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent doesnt exist\n\n");
-      return;
+      return IOERR;
   }
 
   // ok the parent exists
@@ -172,7 +172,11 @@ void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent,
   else
     printf("\n\nNot Found\n\n");
 
-  //return found ? OK : NOENT;
+  return OK;
+}
+
+int yfs_client::getDirContents(yfs_client::inum inum, std::string &buf) {
+  return (ec->get(inum, buf) == extent_protocol::OK) ? OK : IOERR;
 }
 
 std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf) {

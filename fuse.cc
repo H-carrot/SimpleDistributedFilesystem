@@ -343,6 +343,7 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
                    off_t off, struct fuse_file_info *fi)
 {
   yfs_client::inum inum = ino; // req->in.h.nodeid;
+  std::string buf = "";
   struct dirbuf b;
 
   printf("fuseserver_readdir\n");
@@ -354,9 +355,23 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
   memset(&b, 0, sizeof(b));
 
+  // check to see if this is a directory
+  if (yfs->isdir(inum)) {
+    yfs->getDirContents(inum, buf);
 
-  // You fill this in for Lab 2
+    // ok the parent exists
+    std::list<yfs_client::dirent*>* contents = yfs->parsebuf(buf);
 
+    // scan for the file, and grab the inum if we have it
+    for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
+         it != contents->end();
+         it++) {
+      dirbuf_add(&b, (*it)->name.c_str(), (*it)->inum);
+    }
+  } else {
+    // not a directory, get out of here
+    fuse_reply_err(req, ENOTDIR);
+  }
 
   reply_buf_limited(req, b.p, b.size, off, size);
   free(b.p);
