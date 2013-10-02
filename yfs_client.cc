@@ -145,7 +145,7 @@ void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent,
   bool found = false;
   inum = 0;
 
-  printf("\n\nLooking up file, parent num: %llu.\n\n", parent);
+  printf("\n\nlookupResource up file, parent num: %llu.\n\n", parent);
 
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
@@ -168,9 +168,9 @@ void yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent,
   }
 
   if (found)
-    printf("\n\nFound");
+    printf("\n\nFound\n\n");
   else
-    printf("Not Found");
+    printf("\n\nNot Found\n\n");
 
   //return found ? OK : NOENT;
 }

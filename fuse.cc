@@ -277,22 +277,26 @@ void fuseserver_mknod( fuse_req_t req, fuse_ino_t parent,
 void
 fuseserver_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
-  struct fuse_entry_param e;
+  struct fuse_entry_param* e = new fuse_entry_param();
   // In yfs, timeouts are always set to 0.0, and generations are always set to 0
-  e.attr_timeout = 0.0;
-  e.entry_timeout = 0.0;
-  e.generation = 0;
+  e->attr_timeout = 0.0;
+  e->entry_timeout = 0.0;
+  e->generation = 0;
   yfs_client::inum resource_inum = 0;
 
   printf("\n\nAttempting lookup of parent %lu for %s", parent, name);
 
   yfs->lookupResource(resource_inum, parent, name);
 
+  e->ino = resource_inum;
+
   // ok the resource exists, lets get the attributes for it
   if (resource_inum != 0) {
-    getattr(resource_inum, e.attr);
-    fuse_reply_entry(req, &e);
+    printf("\n\nLookup resource replied found for resource: %s with inum %llu\n\n", name, resource_inum);
+    getattr(resource_inum, e->attr);
+    fuse_reply_entry(req, e);
   } else {
+    printf("\n\nLookup resource replied not found for resource: %s\n\n", name);
     fuse_reply_err(req, ENOENT);
   }
 }
