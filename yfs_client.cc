@@ -179,6 +179,79 @@ int yfs_client::getDirContents(yfs_client::inum inum, std::string &buf) {
   return (ec->get(inum, buf) == extent_protocol::OK) ? OK : IOERR;
 }
 
+int yfs_client::setAttr(yfs_client::inum inum, yfs_client::fileinfo file_info) {
+  extent_protocol::attr attr;
+  std::string buf;
+
+  if (ec->getattr(inum, attr) == extent_protocol::OK) {
+    if (attr.size > file_info.size) {
+      // make the buffer larger
+      ec->get(inum, buf);
+
+      buf.resize(file_info.size, '\0');
+    } else if ( attr.size < file_info.size) {
+      // make it smaller
+      ec->get(inum, buf);
+
+      buf.resize(file_info.size);
+    } else {
+      // same size, no change
+      return OK;
+    }
+
+    // update the value
+    ec->put(inum, buf);
+
+    return OK;
+  }
+
+  // couldnt get the attribute
+  return IOERR;
+}
+
+int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , off_t off) {
+  std::string current_val;
+
+  printf("\n\nWriting file: %llu Size: %zu Off: %zd", inum, size, off);
+
+  if (ec->get(inum, current_val) == extent_protocol::OK) {
+    // check to see if we need to make the file bigger
+    if (off + size > current_val.length()) {
+      printf("\n\nResizing from %zu", current_val.length());
+      //yup, lets make this bigger
+      current_val.resize(off + size , '\0');
+      printf("\nTo %zu\n\n", current_val.length());
+    }
+
+    current_val.replace(off, size, std::string(buf), 0, size);
+
+    ec->put(inum, current_val);
+
+    return OK;
+  }
+
+  return IOERR;
+}
+
+int yfs_client::readFile(yfs_client::inum inum, std::string& buf, size_t size , off_t off) {
+  std::string current_val;
+
+  if (ec->get(inum, current_val) == extent_protocol::OK) {
+    if (off > current_val.length()) {
+      // there is nothing we can do here
+      return IOERR;
+    } else {
+      //read what we can
+      buf = current_val.substr(off, size);
+
+      return OK;
+    }
+  } else {
+    return IOERR;
+  }
+}
+
+
 std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf) {
   std::stringstream stream;
 
