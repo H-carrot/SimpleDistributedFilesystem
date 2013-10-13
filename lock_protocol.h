@@ -11,10 +11,10 @@ class lock_protocol {
   typedef int status;
   typedef unsigned long long lockid_t;
   enum rpc_numbers {
-    acquire = 0x7001,
-    release,
-    stat
+    acquire = 6,
+    release=4,
+    stat=2
   };
 };
 
-#endif 
+#endif

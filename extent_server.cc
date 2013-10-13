@@ -1,44 +1,132 @@
 // the extent server implementation
 
-#include "extent_server.h"
+#include <fcntl.h>
 #include <sstream>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-extent_server::extent_server() {}
+#include "extent_server.h"
 
+extent_server::extent_server() {
+  int ignore;
+  std::string root_string = "";
+  put(ROOTDIR, root_string, ignore);
+}
 
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
-  // You fill this in for Lab 2.
-  return extent_protocol::IOERR;
+  _sync_root.lock();
+
+ std::map<extent_protocol::extentid_t, file_inode*>::iterator it = _extent_map.find(id);
+
+  // a new id, let's add it
+  if (it == _extent_map.end()) {
+    printf("\n\nNew put request for: %llu Value: %s", id, buf.c_str());
+    file_inode* new_file = new file_inode();
+
+    new_file->id = id;
+    new_file->file_buf = buf;
+    new_file->attributes.size = buf.length();
+
+    // god forbid we use time_t
+    new_file->attributes.atime = time(NULL);
+    new_file->attributes.ctime = time(NULL);
+    new_file->attributes.mtime = time(NULL);
+
+    _extent_map.insert(std::make_pair(id, new_file));
+  } else {
+    // the id already exists, let's update it's data
+    printf("\n\nUpdate put request for: %llu Value: %s", id, buf.c_str());
+    it->second->file_buf = buf;
+    it->second->attributes.size = buf.length();
+
+    it->second->attributes.atime = time(NULL);
+    it->second->attributes.mtime = time(NULL);
+  }
+
+  _sync_root.unlock();
+  return extent_protocol::OK;
 }
 
 int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 {
-  // You fill this in for Lab 2.
-  return extent_protocol::IOERR;
+  _sync_root.lock();
+
+ printf("\n\nLooking up id: %llu", id);
+
+  std::map<extent_protocol::extentid_t, file_inode*>::iterator it = _extent_map.find(id);
+
+  if (it == _extent_map.end()) {
+     printf("\n\nNot found");
+    // the id doesnt exist
+    _sync_root.unlock();
+    return extent_protocol::IOERR;
+  }
+
+  printf("\n\nFound.");
+
+  printf("\n\nReturning buff: %s\n\n", it->second->file_buf.c_str());
+  // return the buffer value
+  buf = it->second->file_buf;
+
+  // update our access timestamp
+  it->second->attributes.atime = time(NULL);
+
+  _sync_root.unlock();
+
+  printf("\nGet returning OK\n");
+  return extent_protocol::OK;
 }
 
 int extent_server::getattr(extent_protocol::extentid_t id, extent_protocol::attr &a)
 {
-  // You fill this in for Lab 2.
-  // You replace this with a real implementation. We send a phony response
-  // for now because it's difficult to get FUSE to do anything (including
-  // unmount) if getattr fails.
-  a.size = 0;
-  a.atime = 0;
-  a.mtime = 0;
-  a.ctime = 0;
+  _sync_root.lock();
+
+  std::map<extent_protocol::extentid_t, file_inode*>::iterator it = _extent_map.find(id);
+
+  if (it == _extent_map.end()) {
+    // the id doesnt exist
+    _sync_root.unlock();
+
+    // initialize the variables to something just incase
+    a.atime = 0;
+    a.ctime = 0;
+    a.mtime = 0;
+    a.size  = 0;
+
+    return extent_protocol::IOERR;
+  }
+
+  a.atime = it->second->attributes.atime;
+  a.ctime = it->second->attributes.ctime;
+  a.mtime = it->second->attributes.mtime;
+  a.size  = it->second->attributes.size;
+
+  _sync_root.unlock();
+
   return extent_protocol::OK;
 }
 
 int extent_server::remove(extent_protocol::extentid_t id, int &)
 {
-  // You fill this in for Lab 2.
-  return extent_protocol::IOERR;
-}
+   _sync_root.lock();
 
+  std::map<extent_protocol::extentid_t, file_inode*>::iterator it = _extent_map.find(id);
+
+  if (it == _extent_map.end()) {
+    // the id doesnt exist
+    _sync_root.unlock();
+
+    return extent_protocol::IOERR;
+  }
+
+  // cleanup the file node
+  delete it->second;
+  _extent_map.erase(it);
+
+  _sync_root.unlock();
+
+  return extent_protocol::OK;
+}

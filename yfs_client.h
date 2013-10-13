@@ -1,13 +1,22 @@
 #ifndef yfs_client_h
 #define yfs_client_h
 
+#include <list>
 #include <string>
+#include <vector>
+
 //#include "yfs_protocol.h"
 #include "extent_client.h"
-#include <vector>
 
 #include "lock_protocol.h"
 #include "lock_client.h"
+// ELEMENTSEPERATOR - what seperates elements in a inode, eg /sub_dir1/sub_dir2/file1/file2
+// INUMSEPERATOR    - what seperates an elements name from its inum, eg inum@elementname
+// So an example of a directory listing would be: 1234@subdirectory/1235@filename/
+
+#define ELEMENTSEPERATOR '/'
+#define INUMSEPERATOR    '@'
+
 
 class yfs_client {
   extent_client *ec;
@@ -34,8 +43,9 @@ class yfs_client {
   };
 
  private:
-  static std::string filename(inum);
   static inum n2i(std::string);
+  static std::string filename(inum);
+  static void split(const std::string &, char, std::list<std::string> &);
  public:
 
   yfs_client(std::string, std::string);
@@ -45,6 +55,17 @@ class yfs_client {
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+
+  int createFile(inum &, inum, const char*);
+  int lookupResource(yfs_client::inum &, yfs_client::inum, const char*);
+  int getDirContents(yfs_client::inum, std::string &);
+  int setAttr(yfs_client::inum, yfs_client::fileinfo);
+  int writeFile(yfs_client::inum, const char*, size_t, off_t);
+  int readFile(yfs_client::inum, std::string &, size_t, off_t);
+
+  std::string createBuffElement(yfs_client::inum, const char*);
+  std::list<yfs_client::dirent*>* parsebuf(std::string);
+  dirent* parseDirent(std::string);
 };
 
-#endif 
+#endif
