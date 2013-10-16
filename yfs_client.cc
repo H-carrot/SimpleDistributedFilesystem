@@ -326,7 +326,7 @@ int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , 
       printf("\nTo %zu\n\n", current_val.length());
     }
 
-    current_val.replace(off, size, std::string(buf), 0, size);
+    current_val.replace(off, size, buf, size);
 
     ec->put(inum, current_val);
 
