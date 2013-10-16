@@ -43,6 +43,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
     it->second->attributes.size = buf.length();
 
     it->second->attributes.atime = time(NULL);
+    it->second->attributes.ctime = time(NULL);
     it->second->attributes.mtime = time(NULL);
   }
 
@@ -123,7 +124,7 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
   }
 
   // cleanup the file node
-  delete it->second;
+  //delete it->second;
   _extent_map.erase(it);
 
   _sync_root.unlock();

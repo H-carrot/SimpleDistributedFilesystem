@@ -234,7 +234,10 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
     printf("\n\nDone searching, file exists...\n\n");
   }
 
-  ec->put(fileInum, writeDirent(contents));
+
+  printf("\n\nAttempting unlink of %llu\n\n", fileInum);
+
+  ec->put(parent, writeDirent(contents));
   ec->remove(fileInum);
 
   return OK;
@@ -421,7 +424,10 @@ std::string yfs_client::writeDirent(std::list<yfs_client::dirent*>* entries) {
       stream << ELEMENTSEPERATOR;
 
     stream << createBuffElement((*it)->inum, (*it)->name.c_str());
+    firstLoop = false;
   }
+
+  printf("\n\nWriting new directory in parent: %s\n\n", stream.str().c_str());
 
   return stream.str();
 }
