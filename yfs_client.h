@@ -10,10 +10,10 @@
 
 #include "lock_protocol.h"
 #include "lock_client.h"
+
 // ELEMENTSEPERATOR - what seperates elements in a inode, eg /sub_dir1/sub_dir2/file1/file2
 // INUMSEPERATOR    - what seperates an elements name from its inum, eg inum@elementname
 // So an example of a directory listing would be: 1234@subdirectory/1235@filename/
-
 #define ELEMENTSEPERATOR '/'
 #define INUMSEPERATOR    '@'
 
@@ -57,6 +57,9 @@ class yfs_client {
   int getdir(inum, dirinfo &);
 
   int createFile(inum &, inum, const char*);
+  int createDirectory(inum &, inum, const char*);
+  int unlinkFile(inum, const char*);
+  std::string writeDirent(std::list<yfs_client::dirent*>*);
   int lookupResource(yfs_client::inum &, yfs_client::inum, const char*);
   int getDirContents(yfs_client::inum, std::string &);
   int setAttr(yfs_client::inum, yfs_client::fileinfo);

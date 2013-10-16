@@ -16,7 +16,7 @@
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
   ec = new extent_client(extent_dst);
-
+  srandom(getpid());
 }
 
 yfs_client::inum
@@ -103,7 +103,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
-      printf("\n\nParent doesnt exist\n\n");
+      printf("\n\nParent file doesnt exist\n\n");
       return NOENT;
   }
 
@@ -121,7 +121,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
     }
   }
 
-  printf("\n\nDone searching\n\n");
+  printf("\n\nDone searching, no duplicate files\n\n");
 
   // ok there are no files with the same name in this directory
   // we can go ahead and append our new file now to the parent
@@ -145,7 +145,98 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   return OK;
 }
 
-int  yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
+int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
+  std::string parent_buf;
+
+  printf("\n\nCreating directory, parent num: %llu, buf: %s.\n\n", parent, buf);
+  setbuf(stdout, NULL);
+  // verify that the parent directory actually exists
+  if (ec->get(parent, parent_buf) != extent_protocol::OK) {
+      printf("\n\nParent  directory doesnt exist\n\n");
+      return NOENT;
+  }
+
+  printf("\n\nParent dir exists...");
+  // ok the parent exists
+  std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
+
+  // check for duplicate names
+  for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
+       it != contents->end();
+       it++) {
+    if ((*it)->name.compare(buf) == 0 && !isfile((*it)->inum)) {
+      printf("\n\nError directory exists.\n\n");
+      return EEXIST;
+    }
+  }
+
+  printf("\n\nDone searching, no duplicate directories...\n\n");
+
+  // ok there are no directories with the same name in this directory
+  // we can go ahead and append our new directory now to the parent
+  // add the seperator if there are multiple items in here
+  if (contents->size() !=0 )
+    parent_buf += ELEMENTSEPERATOR;
+
+  // generate an inum for our new file
+  inum = random();
+  inum = inum | 0x7FFFFFFF; // set the 31 bit correctly
+
+  parent_buf.append(createBuffElement(inum, buf));
+
+  printf("\n\nNew buf:");
+  printf(parent_buf.c_str());
+  printf("\n\n");
+
+  ec->put(inum, "");
+  ec->put(parent, parent_buf);
+}
+
+int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
+  bool foundFile = false;
+  std::string parent_buf;
+  yfs_client::inum fileInum;
+
+  printf("\n\nDeleting file, parent num: %llu, buf: %s.\n\n", parent, buf);
+  setbuf(stdout, NULL);
+  // verify that the parent directory actually exists
+  if (ec->get(parent, parent_buf) != extent_protocol::OK) {
+      printf("\n\nParent  directory doesnt exist\n\n");
+      return NOENT;
+  }
+
+  printf("\n\nParent dir exists...");
+  // ok the parent exists
+  std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
+
+  // check for duplicate names
+  for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
+       it != contents->end();
+       it++) {
+    if ((*it)->name.compare(buf) == 0 && !isfile((*it)->inum)) {
+      // ok the file exists
+      fileInum = (*it)->inum;
+
+      contents->erase(it);
+
+      foundFile = true;
+      break;
+    }
+  }
+
+  if (!foundFile) {
+    printf("\n\nDone searching, file not found...\n\n");
+    return NOENT;
+  } else {
+    printf("\n\nDone searching, file exists...\n\n");
+  }
+
+
+
+
+}
+
+int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
   bool found = false;
   inum = 0;
@@ -256,7 +347,6 @@ int yfs_client::readFile(yfs_client::inum inum, std::string& buf, size_t size , 
   }
 }
 
-
 std::string yfs_client::createBuffElement(yfs_client::inum inum, const char* buf) {
   std::stringstream stream;
 
@@ -313,4 +403,21 @@ yfs_client::dirent* yfs_client::parseDirent(std::string value) {
   entry->name = *it;
 
   return entry;
+}
+
+std::string yfs_client::writeDirent(std::list<yfs_client::dirent*>* entries) {
+  std::stringstream stream;
+  bool firstLoop = true;
+
+  for (std::list<yfs_client::dirent*>::iterator it = entries->begin();
+     it != entries->end();
+     it++) {
+
+    if (!firstLoop)
+      stream << ELEMENTSEPERATOR;
+
+    stream << createBuffElement((*it)->inum, (*it)->name.c_str());
+  }
+
+  return stream.str();
 }
