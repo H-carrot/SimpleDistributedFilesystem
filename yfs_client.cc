@@ -190,6 +190,8 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
 
   ec->put(inum, "");
   ec->put(parent, parent_buf);
+
+  return OK;
 }
 
 int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
@@ -217,6 +219,7 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
       // ok the file exists
       fileInum = (*it)->inum;
 
+      // remove the element
       contents->erase(it);
 
       foundFile = true;
@@ -231,9 +234,10 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
     printf("\n\nDone searching, file exists...\n\n");
   }
 
+  ec->put(fileInum, writeDirent(contents));
+  ec->remove(fileInum);
 
-
-
+  return OK;
 }
 
 int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {

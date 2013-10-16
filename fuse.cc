@@ -428,12 +428,22 @@ fuseserver_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
   // Suppress compiler warning of unused e.
   (void) e;
 
-  // You fill this in for Lab 3
-#if 0
+  // the inum of the new file
+  yfs_client::inum newInum;
+
+  // try to add
+  printf("\n\nAttempting mkdir.");
+  if (yfs->createDirectory(newInum, parent, name) != yfs_client::OK) {
+    fuse_reply_err(req, EEXIST);
+    return;
+  }
+
+  printf("\n\nAdd correct, inum: %llu\n\n", newInum);
+
+  e.ino = newInum;
+  getattr(newInum, e.attr);
+
   fuse_reply_entry(req, &e);
-#else
-  fuse_reply_err(req, ENOSYS);
-#endif
 }
 
 //
@@ -450,7 +460,20 @@ fuseserver_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   // You fill this in for Lab 3
   // Success:	fuse_reply_err(req, 0);
   // Not found:	fuse_reply_err(req, ENOENT);
-  fuse_reply_err(req, ENOSYS);
+  printf("\n\nAttempting unlink of %s with parent inum %llu\n\n", name, parent);
+
+  yfs_client::status ret;
+
+  ret = yfs->unlinkFile(parent, name);
+
+  if (ret == yfs_client::OK)
+    printf("\n\nUnlink ok...\n\n");
+    use_reply_err(req, 0);
+  else {
+     printf("\n\nUnlink failed...\n\n");
+    fuse_reply_err(req, ENOENT);
+    }
+  }
 }
 
 void
