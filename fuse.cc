@@ -460,19 +460,18 @@ fuseserver_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)
   // You fill this in for Lab 3
   // Success:	fuse_reply_err(req, 0);
   // Not found:	fuse_reply_err(req, ENOENT);
-  printf("\n\nAttempting unlink of %s with parent inum %llu\n\n", name, parent);
+  printf("\n\nAttempting unlink of %s with parent inum %lu\n\n", name, parent);
 
   yfs_client::status ret;
 
   ret = yfs->unlinkFile(parent, name);
 
-  if (ret == yfs_client::OK)
+  if (ret == yfs_client::OK) {
     printf("\n\nUnlink ok...\n\n");
-    use_reply_err(req, 0);
-  else {
-     printf("\n\nUnlink failed...\n\n");
+    fuse_reply_err(req, 0);
+  } else {
+    printf("\n\nUnlink failed...\n\n");
     fuse_reply_err(req, ENOENT);
-    }
   }
 }
 

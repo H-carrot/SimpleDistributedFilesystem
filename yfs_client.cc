@@ -215,7 +215,7 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
   for (std::list<yfs_client::dirent*>::iterator it = contents->begin();
        it != contents->end();
        it++) {
-    if ((*it)->name.compare(buf) == 0 && !isfile((*it)->inum)) {
+    if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum)) {
       // ok the file exists
       fileInum = (*it)->inum;
 
