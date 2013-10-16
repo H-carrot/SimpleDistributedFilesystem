@@ -16,6 +16,7 @@
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
   ec = new extent_client(extent_dst);
+  lc = new lock_client(lock_dst);
   srandom(getpid());
 }
 
@@ -57,6 +58,8 @@ yfs_client::getfile(inum inum, fileinfo &fin)
   // You modify this function for Lab 3
   // - hold and release the file lock
 
+  lc->acquire(inum);
+
   printf("getfile %016llx\n", inum);
   extent_protocol::attr a;
   if (ec->getattr(inum, a) != extent_protocol::OK) {
@@ -71,6 +74,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
   printf("getfile %016llx -> sz %llu\n", inum, fin.size);
 
  release:
+  lc->release(inum);
 
   return r;
 }
@@ -81,6 +85,8 @@ yfs_client::getdir(inum inum, dirinfo &din)
   int r = OK;
   // You modify this function for Lab 3
   // - hold and release the directory lock
+
+  lc->acquire(inum);
 
   printf("getdir %016llx\n", inum);
   extent_protocol::attr a;
@@ -93,11 +99,15 @@ yfs_client::getdir(inum inum, dirinfo &din)
   din.ctime = a.ctime;
 
  release:
+  lc->release(inum);
+
   return r;
 }
 
 int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
+
+  lc->acquire(parent);
 
   printf("\n\nCreating file, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
@@ -117,6 +127,7 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
        it++) {
     if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum)) {
       printf("\n\nError file exists.\n\n");
+      lc->release(parent);
       return EEXIST;
     }
   }
@@ -142,17 +153,22 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   ec->put(inum, "");
   ec->put(parent, parent_buf);
 
+  lc->release(parent);
+
   return OK;
 }
 
 int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
 
+  lc->acquire(parent);
+
   printf("\n\nCreating directory, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent  directory doesnt exist\n\n");
+      lc->release(parent);
       return NOENT;
   }
 
@@ -166,6 +182,7 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
        it++) {
     if ((*it)->name.compare(buf) == 0 && !isfile((*it)->inum)) {
       printf("\n\nError directory exists.\n\n");
+      lc->release(parent);
       return EEXIST;
     }
   }
@@ -180,7 +197,7 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
 
   // generate an inum for our new file
   inum = random();
-  inum = inum | 0x7FFFFFFF; // set the 31 bit correctly
+  inum = inum & 0x7FFFFFFF; // set the 31 bit correctly
 
   parent_buf.append(createBuffElement(inum, buf));
 
@@ -191,6 +208,8 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
   ec->put(inum, "");
   ec->put(parent, parent_buf);
 
+  lc->release(parent);
+
   return OK;
 }
 
@@ -199,11 +218,14 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
   yfs_client::inum fileInum;
 
+  lc->acquire(parent);
+
   printf("\n\nDeleting file, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent  directory doesnt exist\n\n");
+      lc->release(parent);
       return NOENT;
   }
 
@@ -219,6 +241,9 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
       // ok the file exists
       fileInum = (*it)->inum;
 
+      // get the lock on the file so no one can modify it at this point
+      lc->acquire(fileInum);
+
       // remove the element
       contents->erase(it);
 
@@ -229,16 +254,19 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
 
   if (!foundFile) {
     printf("\n\nDone searching, file not found...\n\n");
+    lc->release(parent);
     return NOENT;
   } else {
     printf("\n\nDone searching, file exists...\n\n");
   }
 
-
   printf("\n\nAttempting unlink of %llu\n\n", fileInum);
 
   ec->put(parent, writeDirent(contents));
   ec->remove(fileInum);
+
+  lc->release(fileInum);
+  lc->release(parent);
 
   return OK;
 }
@@ -248,11 +276,14 @@ int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, 
   bool found = false;
   inum = 0;
 
+  lc->acquire(parent);
+
   printf("\n\nlookupResource up file, parent num: %llu.\n\n", parent);
 
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
       printf("\n\nParent doesnt exist\n\n");
+      lc->release(parent);
       return IOERR;
   }
 
@@ -275,16 +306,26 @@ int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, 
   else
     printf("\n\nNot Found\n\n");
 
+  lc->release(parent);
   return OK;
 }
 
 int yfs_client::getDirContents(yfs_client::inum inum, std::string &buf) {
-  return (ec->get(inum, buf) == extent_protocol::OK) ? OK : IOERR;
+  lc->acquire(inum);
+  if ((ec->get(inum, buf) == extent_protocol::OK)) {
+    lc->release(inum);
+    return OK;
+  } else {
+    lc->release(inum);
+    return IOERR;
+  }
 }
 
 int yfs_client::setAttr(yfs_client::inum inum, yfs_client::fileinfo file_info) {
   extent_protocol::attr attr;
   std::string buf;
+
+  lc->acquire(inum);
 
   if (ec->getattr(inum, attr) == extent_protocol::OK) {
     if (attr.size > file_info.size) {
@@ -299,14 +340,20 @@ int yfs_client::setAttr(yfs_client::inum inum, yfs_client::fileinfo file_info) {
       buf.resize(file_info.size);
     } else {
       // same size, no change
+      lc->release(inum);
       return OK;
     }
 
     // update the value
     ec->put(inum, buf);
 
+    lc->release(inum);
+
     return OK;
   }
+
+  lc->release(inum);
+
 
   // couldnt get the attribute
   return IOERR;
@@ -314,6 +361,8 @@ int yfs_client::setAttr(yfs_client::inum inum, yfs_client::fileinfo file_info) {
 
 int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , off_t off) {
   std::string current_val;
+
+  lc->acquire(inum);
 
   printf("\n\nWriting file: %llu Size: %zu Off: %zd", inum, size, off);
 
@@ -330,8 +379,12 @@ int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , 
 
     ec->put(inum, current_val);
 
+    lc->release(inum);
+
     return OK;
   }
+
+  lc->release(inum);
 
   return IOERR;
 }
@@ -339,17 +392,21 @@ int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , 
 int yfs_client::readFile(yfs_client::inum inum, std::string& buf, size_t size , off_t off) {
   std::string current_val;
 
+  lc->acquire(inum);
+
   if (ec->get(inum, current_val) == extent_protocol::OK) {
     if (off > current_val.length()) {
       // there is nothing we can do here
+      lc->release(inum);
       return IOERR;
     } else {
       //read what we can
       buf = current_val.substr(off, size);
-
+      lc->release(inum);
       return OK;
     }
   } else {
+    lc->release(inum);
     return IOERR;
   }
 }
@@ -379,14 +436,11 @@ std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
 
   printf("\n\nAttempting parse: %s\n\n", buf.c_str());
 
-  printf("\n Starting split...\n");
-
   split(buf, ELEMENTSEPERATOR, split_string);
 
   for (std::list<std::string>::iterator it = split_string.begin();
        it != split_string.end();
        it++) {
-    printf("\nParsed line: %s\n", (*it).c_str());
     entries->push_back(parseDirent(*it));
   }
 

@@ -9,6 +9,7 @@
 lock_server::lock_server():
   nacquire (0)
 {
+  printf("Lock server starting...\n\n");
 }
 
 lock_protocol::status
@@ -25,6 +26,8 @@ lock_protocol::status lock_server::acquire(int clt, lock_protocol::lockid_t lid,
   // first grab the global lock, as we might have a new lock request non seen
   // if that is the case, add it, if
   sync_root.lock();
+
+  printf("\nAcquiring lock: %d", lid);
 
   std::map<lock_protocol::lockid_t, lock_info*>::iterator it = lock_list.find(lid);
 
@@ -58,12 +61,16 @@ lock_protocol::status lock_server::acquire(int clt, lock_protocol::lockid_t lid,
 lock_protocol::status lock_server::release(int clt, lock_protocol::lockid_t lid, int &r) {
   sync_root.lock();
 
+  printf("\nReleasing lock: %d...", lid);
+
   std::map<lock_protocol::lockid_t, lock_info*>::iterator it = lock_list.find(lid);
 
   // make sure that it is locked and by the current client
   if (it->second->clt == clt) {
+    printf("released.");
     it->second->clt = UNLOCKED;
   } else {
+    printf("never owned.");
     sync_root.unlock();
     return lock_protocol::IOERR;
   }
