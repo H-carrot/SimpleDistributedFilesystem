@@ -12,12 +12,13 @@ class lock_protocol {
   typedef unsigned long long lockid_t;
   typedef unsigned long long xid_t;
   enum rpc_numbers {
-    acquire = 0x7001,
-    release,
-    stat
+    acquire = 6,
+    release=4,
+    stat=2
   };
 };
 
+<<<<<<< HEAD
 class rlock_protocol {
  public:
   enum xxstatus { OK, RPCERR };
@@ -27,4 +28,4 @@ class rlock_protocol {
     retry = 0x8002
   };
 };
-#endif 
+#endif
