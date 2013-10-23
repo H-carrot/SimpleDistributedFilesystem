@@ -18,7 +18,6 @@ class lock_protocol {
   };
 };
 
-<<<<<<< HEAD
 class rlock_protocol {
  public:
   enum xxstatus { OK, RPCERR };

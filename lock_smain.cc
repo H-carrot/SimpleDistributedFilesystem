@@ -1,16 +1,12 @@
+#include "jsl_log.h"
+#include "lock_server_cache.h"
 #include "rpc.h"
+
 #include <arpa/inet.h>
 #include <signal.h>
-<<<<<<< HEAD
-#include "lock_server_cache.h"
-=======
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "lock_server.h"
->>>>>>> lab3
-
-#include "jsl_log.h"
 
 // Main loop of lock_server
 
