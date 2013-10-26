@@ -109,15 +109,12 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
 
   lc->acquire(parent);
 
-  printf("\n\nCreating file, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
-      printf("\n\nParent file doesnt exist\n\n");
       return NOENT;
   }
 
-  printf("\n\nParent exists...");
   // ok the parent exists
   std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
 
@@ -126,13 +123,10 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
        it != contents->end();
        it++) {
     if ((*it)->name.compare(buf) == 0 && isfile((*it)->inum)) {
-      printf("\n\nError file exists.\n\n");
       lc->release(parent);
       return EEXIST;
     }
   }
-
-  printf("\n\nDone searching, no duplicate files\n\n");
 
   // ok there are no files with the same name in this directory
   // we can go ahead and append our new file now to the parent
@@ -145,10 +139,6 @@ int yfs_client::createFile(yfs_client::inum &inum, yfs_client::inum parent, cons
   inum = inum | 0x80000000; // set the 31 bit correctly
 
   parent_buf.append(createBuffElement(inum, buf));
-
-  printf("\n\nNew buf:");
-  printf(parent_buf.c_str());
-  printf("\n\n");
 
   ec->put(inum, "");
   ec->put(parent, parent_buf);
@@ -163,16 +153,13 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
 
   lc->acquire(parent);
 
-  printf("\n\nCreating directory, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
-      printf("\n\nParent  directory doesnt exist\n\n");
       lc->release(parent);
       return NOENT;
   }
 
-  printf("\n\nParent dir exists...");
   // ok the parent exists
   std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
 
@@ -181,13 +168,10 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
        it != contents->end();
        it++) {
     if ((*it)->name.compare(buf) == 0 && !isfile((*it)->inum)) {
-      printf("\n\nError directory exists.\n\n");
       lc->release(parent);
       return EEXIST;
     }
   }
-
-  printf("\n\nDone searching, no duplicate directories...\n\n");
 
   // ok there are no directories with the same name in this directory
   // we can go ahead and append our new directory now to the parent
@@ -200,10 +184,6 @@ int yfs_client::createDirectory(yfs_client::inum &inum, yfs_client::inum parent,
   inum = inum & 0x7FFFFFFF; // set the 31 bit correctly
 
   parent_buf.append(createBuffElement(inum, buf));
-
-  printf("\n\nNew buf:");
-  printf(parent_buf.c_str());
-  printf("\n\n");
 
   ec->put(inum, "");
   ec->put(parent, parent_buf);
@@ -220,16 +200,13 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
 
   lc->acquire(parent);
 
-  printf("\n\nDeleting file, parent num: %llu, buf: %s.\n\n", parent, buf);
   setbuf(stdout, NULL);
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
-      printf("\n\nParent  directory doesnt exist\n\n");
       lc->release(parent);
       return NOENT;
   }
 
-  printf("\n\nParent dir exists...");
   // ok the parent exists
   std::list<yfs_client::dirent*>* contents = parsebuf(parent_buf);
 
@@ -253,14 +230,11 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
   }
 
   if (!foundFile) {
-    printf("\n\nDone searching, file not found...\n\n");
     lc->release(parent);
     return NOENT;
   } else {
     printf("\n\nDone searching, file exists...\n\n");
   }
-
-  printf("\n\nAttempting unlink of %llu\n\n", fileInum);
 
   ec->put(parent, writeDirent(contents));
   ec->remove(fileInum);
@@ -273,16 +247,12 @@ int yfs_client::unlinkFile(yfs_client::inum parent, const char* buf) {
 
 int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, const char* buf) {
   std::string parent_buf;
-  bool found = false;
   inum = 0;
 
   lc->acquire(parent);
 
-  printf("\n\nlookupResource up file, parent num: %llu.\n\n", parent);
-
   // verify that the parent directory actually exists
   if (ec->get(parent, parent_buf) != extent_protocol::OK) {
-      printf("\n\nParent doesnt exist\n\n");
       lc->release(parent);
       return IOERR;
   }
@@ -300,11 +270,6 @@ int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, 
       break;
     }
   }
-
-  if (found)
-    printf("\n\nFound\n\n");
-  else
-    printf("\n\nNot Found\n\n");
 
   lc->release(parent);
   return OK;
@@ -364,15 +329,11 @@ int yfs_client::writeFile(yfs_client::inum inum, const char* buf, size_t size , 
 
   lc->acquire(inum);
 
-  printf("\n\nWriting file: %llu Size: %zu Off: %zd", inum, size, off);
-
   if (ec->get(inum, current_val) == extent_protocol::OK) {
     // check to see if we need to make the file bigger
     if (off + size > current_val.length()) {
-      printf("\n\nResizing from %zu", current_val.length());
       //yup, lets make this bigger
       current_val.resize(off + size , '\0');
-      printf("\nTo %zu\n\n", current_val.length());
     }
 
     current_val.replace(off, size, buf, size);
@@ -434,8 +395,6 @@ std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
   std::list<yfs_client::dirent*>* entries = new std::list<yfs_client::dirent*>();
   std::list<std::string> split_string;
 
-  printf("\n\nAttempting parse: %s\n\n", buf.c_str());
-
   split(buf, ELEMENTSEPERATOR, split_string);
 
   for (std::list<std::string>::iterator it = split_string.begin();
@@ -443,8 +402,6 @@ std::list<yfs_client::dirent*>* yfs_client::parsebuf(std::string buf) {
        it++) {
     entries->push_back(parseDirent(*it));
   }
-
-  printf("\nDone parsing...\n");
 
   return entries;
 }
@@ -480,8 +437,6 @@ std::string yfs_client::writeDirent(std::list<yfs_client::dirent*>* entries) {
     stream << createBuffElement((*it)->inum, (*it)->name.c_str());
     firstLoop = false;
   }
-
-  printf("\n\nWriting new directory in parent: %s\n\n", stream.str().c_str());
 
   return stream.str();
 }
