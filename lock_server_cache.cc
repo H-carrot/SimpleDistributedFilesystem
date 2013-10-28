@@ -11,10 +11,25 @@
 #include "lock_server_cache.h"
 #include "tprintf.h"
 
-lock_server_cache::lock_server_cache()
+static void *
+revoker_starter(void* server)
 {
+  ((lock_server_cache*) server)->revoker();
+  return 0;
 }
 
+static void *
+enforcer_starter(void* server)
+{
+  ((lock_server_cache*) server)->enforcer();
+  return 0;
+}
+
+lock_server_cache::lock_server_cache()
+{
+  pthread_create(&enforcer_t, NULL, &enforcer_starter, this);
+  pthread_create(&revoker_t, NULL, &revoker_starter, this);
+}
 
 int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
                                int &)
@@ -60,10 +75,10 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
     {
        tprintf("\nLock %llu is TAKEN sending REVOKE to %s - queueing %s - ", lid, lock->holder.c_str(), id.c_str());
 
-      lock->revoked = true;
+      //lock->revoked = true;
       sync_root.unlock();
 
-      revoke(lid);
+      //revoke(lid);
     } else {
       // the lock has already been flagged for revoking, we can only wait
       tprintf("\nLock %llu is TAKEN - pending revoke on %s - queueing %s - ", lid, lock->holder.c_str(), id.c_str());
@@ -131,3 +146,62 @@ void lock_server_cache::revoke(lock_protocol::lockid_t lid) {
     h.safebind()->call(rlock_protocol::revoke, lid, r);
 }
 
+
+void
+lock_server_cache::enforcer(void) {
+  // cleans up anyone who is holding the lock while others are waiting, but
+  // hasnt been informed of the revoke
+  tprintf("\nReleaser started. ");
+  while(true) {
+    revoke_lock.lock();
+    sync_root.lock();
+
+    typedef std::map<lock_protocol::lockid_t, cached_lock_info*>::iterator it_type;
+
+    for(it_type iterator = lock_list.begin(); iterator != lock_list.end(); iterator++) {
+      if (iterator->second->queue.size() !=0 && iterator->second->revoked == false) {
+        revoke_request request;
+        request.holder = iterator->second->holder;
+        request.lid = iterator->first;
+
+        revoke_queue.push_back(request);
+
+        iterator->second->revoked = true;
+      }
+    }
+
+    sync_root.unlock();
+    revoke_lock.unlock();
+
+    // 5 ms
+    usleep(5000);
+  }
+}
+
+void
+lock_server_cache::revoker(void) {
+  // goes through the list, and actually calls the revoke on the client
+  tprintf("\nRevoker started. ");
+  int r;
+
+  while (true) {
+    revoke_lock.lock();
+
+    while (revoke_queue.size() != 0) {
+      revoke_request request = revoke_queue.front();
+      revoke_queue.pop_front();
+
+      handle h(request.holder);
+
+      tprintf("\nSending revoke to %s for lock %llu.", request.holder.c_str(), request.lid);
+
+      if (h.safebind())
+        h.safebind()->call(rlock_protocol::revoke, request.lid, r);
+    }
+
+    revoke_lock.unlock();
+
+    // 5 ms
+    usleep(5000);
+  }
+}

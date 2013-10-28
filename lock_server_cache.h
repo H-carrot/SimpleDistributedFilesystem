@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <unistd.h>
 
 #include "lock.hpp"
 #include "lock_protocol.h"
@@ -19,11 +20,20 @@ struct cached_lock_info {
   base::ConditionVar flag;      // condition variable for threads waiting for the lock
 };
 
+struct revoke_request {
+  std::string holder;
+  lock_protocol::lockid_t lid;
+};
+
 class lock_server_cache {
  private:
   int nacquire;
   base::Mutex sync_root;
+  base::Mutex revoke_lock;
   std::map<lock_protocol::lockid_t, cached_lock_info*> lock_list;
+  std::list<revoke_request> revoke_queue;
+  pthread_t enforcer_t;
+  pthread_t revoker_t;
 
  public:
   lock_server_cache();
@@ -31,6 +41,8 @@ class lock_server_cache {
   int acquire(lock_protocol::lockid_t, std::string id, int &);
   int release(lock_protocol::lockid_t, std::string id, int &);
   void revoke(lock_protocol::lockid_t);
+  void enforcer();
+  void revoker();
 };
 
 #endif

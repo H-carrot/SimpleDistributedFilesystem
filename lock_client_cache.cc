@@ -167,6 +167,7 @@ rlock_protocol::status
 lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
                                   int &)
 {
+  int r;
   sync_root.lock();
 
   tprintf("\nServer is signaling revoke of lock %llu.", lid);
@@ -191,6 +192,9 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     tprintf("\nLock %llu revoked immediatly, no holders..", lid);
 
     sync_root.unlock();
+
+    // we need to do a release here
+    cl->call(lock_protocol::release, lid, id, r);
 
     return lock_protocol::OK;
   } else {
