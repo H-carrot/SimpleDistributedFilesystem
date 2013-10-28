@@ -265,7 +265,6 @@ int yfs_client::lookupResource(yfs_client::inum &inum, yfs_client::inum parent, 
        it != contents->end();
        it++) {
     if ((*it)->name.compare(buf) == 0) {
-      found = true;
       inum = (*it)->inum;
       break;
     }
