@@ -12,9 +12,9 @@ class lock_protocol {
   typedef unsigned long long lockid_t;
   typedef unsigned long long xid_t;
   enum rpc_numbers {
-    acquire = 6,
-    release=4,
-    stat=2
+    acquire = 0x7001,
+    release = 0x7002,
+    stat = 0x7003
   };
 };
 

@@ -37,7 +37,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
 
   sync_root.lock();
 
-  tprintf("\nAcquiring lock %llu", lid);
+  tprintf("\nAcquiring lock %llu. ", lid);
 
   // let's see if we have a copy of the lock, and whether we can used the cached version
   std::map<lock_protocol::lockid_t, lock_info*>::iterator lock_list_it = lock_list.find(lid);
@@ -50,7 +50,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
 
     lock_list[lid] = new_lock;
 
-     tprintf("\n%llu is a new lock, creating it.", lid);
+    tprintf("\n%llu is a new lock, creating it. ", lid);
   }
 
   sync_root.unlock();
@@ -68,9 +68,9 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
       // let's go grab that lock
       sync_root.unlock();
 
-      tprintf("\nAcquiring lock %llu from server.", lid);
+      tprintf("\nAcquiring lock %llu from server. ", lid);
       acquire_lock(lid);
-      tprintf("\nAcquiring lock %llu from server submitted.", lid);
+      tprintf("\nAcquiring lock %llu from server submitted. ", lid);
 
       sync_root.lock();
     }
@@ -81,21 +81,21 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
         lock->flag.wait(&sync_root);
     }
 
-    tprintf("\nLock %llu is owned by this client.", lid);
+    tprintf("\nLock %llu is owned by this client. ", lid);
 
     if (lock->holder == FREE) {
       // that was easy, we got the lock
       lock->holder = pthread_self();
       lock->awaiting_lock--;
 
-       tprintf("\nGot lock %llu, was free.", lid);
+       tprintf("\nGot lock %llu, was free. ", lid);
 
       break;
     } else {
       // someone on our client has the lock
       lock->awaiting_lock++;
 
-       tprintf("\nWaiting for thread to release lock %llu", lid);
+       tprintf("\nWaiting for thread to release lock %llu. ", lid);
 
       while (lock->holder != FREE)
         lock->flag.wait(&sync_root);
@@ -104,7 +104,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
       lock->awaiting_lock--;
       lock->holder = pthread_self();
 
-      tprintf("\nLock %llu acquired sucessfully.", lid);
+      tprintf("\nLock %llu acquired sucessfully. ", lid);
 
       break;
     }
@@ -122,6 +122,8 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 
   sync_root.lock();
 
+  tprintf("\nReleasing lock %llu. ", lid);
+
   lock_info* lock = lock_list[lid];
 
   lock->holder = FREE;
@@ -134,13 +136,19 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 
     sync_root.unlock();
 
+    tprintf("\nLock %llu revoked by server, no one waiting, returning. ", lid);
+
     cl->call(lock_protocol::release, cl->id(), lid, r);
+
+    tprintf("\nLock %llu returned to server. ", lid);
 
     return lock_protocol::OK;
   } else {
     // either the lock wasnt revoked, or someone on the client still wants it
 
     lock->holder = FREE;
+
+    tprintf("\nLock %llu released. Awaiting lock: %d. ", lid, lock->awaiting_lock);
 
     if (lock->awaiting_lock != 0) {
       // wake up any waiting clients
