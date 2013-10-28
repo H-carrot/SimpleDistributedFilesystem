@@ -47,6 +47,8 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
     lock_info* new_lock = new lock_info();
 
     new_lock->holder = FREE;
+    new_lock->owned = false;
+    new_lock->acquiring = false;
 
     lock_list[lid] = new_lock;
 
@@ -77,7 +79,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
 
     // wait until our client has the lock
     if (lock->owned == false) {
-      while (lock->owned)
+      while (lock->owned == false)
         lock->flag.wait(&sync_root);
     }
 
@@ -138,7 +140,7 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 
     tprintf("\nLock %llu revoked by server, no one waiting, returning. ", lid);
 
-    cl->call(lock_protocol::release, cl->id(), lid, r);
+    cl->call(lock_protocol::release, lid, id, r);
 
     tprintf("\nLock %llu returned to server. ", lid);
 
@@ -244,7 +246,7 @@ void lock_client_cache::acquire_lock(lock_protocol::lockid_t lid) {
 
   sync_root.unlock();
 
-  ret = cl->call(lock_protocol::acquire, cl->id(), lid, r);
+  ret = cl->call(lock_protocol::acquire, lid, id, r);
 
   sync_root.lock();
 

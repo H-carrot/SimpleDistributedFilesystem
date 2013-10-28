@@ -21,6 +21,8 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
 {
   sync_root.lock();
 
+  tprintf("\nGot acquire request for %llu from %s - ", lid, id.c_str());
+
   // let's see if we have a copy of the lock being requested
   std::map<lock_protocol::lockid_t, cached_lock_info*>::iterator lock_list_it = lock_list.find(lid);
 
@@ -30,7 +32,9 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
 
     new_lock->holder = id;
 
-    lock_list[lid] = new cached_lock_info();
+    lock_list[lid] = new_lock;
+
+    tprintf("\nLock %llu is NEW granted to %s - ", lid, id.c_str());
 
     sync_root.unlock();
 
@@ -41,6 +45,7 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
 
   // the lock is available for grabs
   if (lock->holder == FREE) {
+    tprintf("\nLock %llu is FREE granted to %s - ", lid, id.c_str());
     lock->holder = id;
 
     sync_root.unlock();
@@ -50,15 +55,19 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
     // ok someone has the lock, we have to make them wait
     lock->queue.push_back(id);
 
-    // see if anyone has told the current holder to give the lock back
+       // see if anyone has told the current holder to give the lock back
     if (lock->revoked == false)
     {
+       tprintf("\nLock %llu is TAKEN sending REVOKE to %s - queueing %s - ", lid, lock->holder.c_str(), id.c_str());
+
       lock->revoked = true;
       sync_root.unlock();
 
       revoke(lid);
     } else {
       // the lock has already been flagged for revoking, we can only wait
+      tprintf("\nLock %llu is TAKEN - pending revoke on %s - queueing %s - ", lid, lock->holder.c_str(), id.c_str());
+
       sync_root.unlock();
     }
 
@@ -93,7 +102,9 @@ if (lock->queue.size() == 0) {
   sync_root.unlock();
 
   // call retry here, which in this model is actually granting the lock to the client
-  handle h(lock->holder);
+  handle h(holder);
+
+  tprintf("\nLock %llu is FREE sending RETRY to  %s - ", lid, holder.c_str());
 
   if (h.safebind())
     h.safebind()->call(rlock_protocol::retry, lid, r);
