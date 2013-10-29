@@ -12,7 +12,7 @@
 #include "lock_protocol.h"
 #include "rpc.h"
 
-#define FREE 99999999
+#define FREE 0
 
 struct lock_info {
   base::ConditionVar flag;      // condition variable for threads waiting for the lock
@@ -24,7 +24,7 @@ struct lock_info {
   volatile pthread_t holder;    // the id of the pthread currently holding the lock
 };
 
-// Classes that inherit lock_release_user can override dorelease so that 
+// Classes that inherit lock_release_user can override dorelease so that
 // that they will be called when lock_client releases a lock.
 // You will not need to do anything with this class until Lab 5.
 class lock_release_user {
@@ -48,9 +48,9 @@ class lock_client_cache : public lock_client {
   virtual ~lock_client_cache() {};
   lock_protocol::status acquire(lock_protocol::lockid_t);
   lock_protocol::status release(lock_protocol::lockid_t);
-  rlock_protocol::status revoke_handler(lock_protocol::lockid_t, 
+  rlock_protocol::status revoke_handler(lock_protocol::lockid_t,
                                         int &);
-  rlock_protocol::status retry_handler(lock_protocol::lockid_t, 
+  rlock_protocol::status retry_handler(lock_protocol::lockid_t,
                                        int &);
 };
 

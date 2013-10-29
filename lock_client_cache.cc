@@ -90,7 +90,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
       lock->holder = pthread_self();
       lock->awaiting_lock--;
 
-       tprintf("\nGot lock %llu, was free. ", lid);
+      tprintf("\nGot lock %llu, was free. ", lid);
 
       break;
     } else {
@@ -134,6 +134,7 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
     // ok so no one on our client wants the lock and the server wants it back, so let's return it
     lock->owned = false;
     lock->revoked = false;
+    lock->acquiring = false;
     lock->holder = FREE;
 
     sync_root.unlock();
@@ -147,9 +148,6 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
     return lock_protocol::OK;
   } else {
     // either the lock wasnt revoked, or someone on the client still wants it
-
-    lock->holder = FREE;
-
     tprintf("\nLock %llu released. Awaiting lock: %d. ", lid, lock->awaiting_lock);
 
     if (lock->awaiting_lock != 0) {
@@ -170,16 +168,20 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
   int r;
   sync_root.lock();
 
-  tprintf("\nServer is signaling revoke of lock %llu.", lid);
+  tprintf("\nServer is signaling revoke of lock %llu to this client %s. ", lid, id.c_str());
 
   // let's see if we have a copy of the lock, and whether we can used the cached version
   std::map<lock_protocol::lockid_t, lock_info*>::iterator lock_list_it = lock_list.find(lid);
 
   if (lock_list_it == lock_list.end()) {
+    tprintf("\nLock %llu doesnt exist on this client (%s) yet. Marking it as revoked in future.", lid, id.c_str());
     // ok we dont have a copy of this lock, let's make a record of it
     lock_info* new_lock = new lock_info();
 
+    // because of our protocol, we need to essentially create a new record and give the lock to
+    // the server until it is done with it
     new_lock->holder = FREE;
+    new_lock->revoked = true;
 
     lock_list[lid] = new_lock;
   }
@@ -202,7 +204,7 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     // to actually return the lock to the server
     lock->revoked = true;
 
-    tprintf("\nLock %llu revoke pending.", lid);
+    tprintf("\nLock %llu revoke pending. %s and %d waiting.", lid, lock->holder==FREE ? "FREE" :  "NOT FREE", lock->awaiting_lock);
 
     sync_root.unlock();
 
