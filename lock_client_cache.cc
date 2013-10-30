@@ -33,7 +33,6 @@ lock_protocol::status
 lock_client_cache::acquire(lock_protocol::lockid_t lid)
 {
   int r;
-  bool awaiting_lock = true;
 
   sync_root.lock();
 
@@ -49,6 +48,7 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
     new_lock->holder = FREE;
     new_lock->owned = false;
     new_lock->acquiring = false;
+    new_lock->awaiting_lock = 0;
 
     lock_list[lid] = new_lock;
 
@@ -58,58 +58,53 @@ lock_client_cache::acquire(lock_protocol::lockid_t lid)
   sync_root.unlock();
 
   // ok let's try to get the lock
-  while (awaiting_lock) {
+  sync_root.lock();
+
+  lock_info* lock = lock_list[lid];
+
+  // let people know we are waiting
+  lock->awaiting_lock++;
+
+  if (lock->owned == false && lock->acquiring == false) {
+    // let's go grab that lock
+    sync_root.unlock();
+
+    tprintf("\nAcquiring lock %llu from server. ", lid);
+    acquire_lock(lid);
+    tprintf("\nAcquiring lock %llu from server submitted by %s ", lid, id.c_str());
+
     sync_root.lock();
+  }
 
-    lock_info* lock = lock_list[lid];
+  // wait until our client has the lock
+  if (lock->owned == false) {
+    while (lock->owned == false)
+      lock->flag.wait(&sync_root);
+  }
 
-    // let people know we are waiting
-    lock->awaiting_lock++;
+  tprintf("\nLock %llu is owned by this client %s - ", lid, id.c_str());
 
-    if (lock->owned == false && lock->acquiring == false) {
-      // let's go grab that lock
-      sync_root.unlock();
+  lock = lock_list[lid];
 
-      tprintf("\nAcquiring lock %llu from server. ", lid);
-      acquire_lock(lid);
-      tprintf("\nAcquiring lock %llu from server submitted. ", lid);
+  if (lock->holder == FREE) {
+    // that was easy, we got the lock
+    lock->holder = pthread_self();
+    lock->awaiting_lock--;
 
-      sync_root.lock();
+    tprintf("\nGot lock %llu, was free. ", lid);
+
+  } else {
+    while (lock->holder != FREE) {
+      tprintf("\nWaiting for thread to release lock %llu on %s. ", lid, id.c_str());
+      lock->flag.wait(&sync_root);
     }
 
-    // wait until our client has the lock
-    if (lock->owned == false) {
-      while (lock->owned == false)
-        lock->flag.wait(&sync_root);
-    }
 
-    tprintf("\nLock %llu is owned by this client. ", lid);
+    // ok now we have the lock
+    lock->awaiting_lock--;
+    lock->holder = pthread_self();
 
-    if (lock->holder == FREE) {
-      // that was easy, we got the lock
-      lock->holder = pthread_self();
-      lock->awaiting_lock--;
-
-      tprintf("\nGot lock %llu, was free. ", lid);
-
-      break;
-    } else {
-      // someone on our client has the lock
-      lock->awaiting_lock++;
-
-       tprintf("\nWaiting for thread to release lock %llu. ", lid);
-
-      while (lock->holder != FREE)
-        lock->flag.wait(&sync_root);
-
-      // ok now we have the lock
-      lock->awaiting_lock--;
-      lock->holder = pthread_self();
-
-      tprintf("\nLock %llu acquired sucessfully. ", lid);
-
-      break;
-    }
+    tprintf("\nLock %llu acquired by thread sucessfully on %s, awaiting_lock: %d . ", lid, id.c_str(), lock->awaiting_lock);
   }
 
   sync_root.unlock();
@@ -124,9 +119,9 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
 
   sync_root.lock();
 
-  tprintf("\nReleasing lock %llu. ", lid);
-
   lock_info* lock = lock_list[lid];
+
+  tprintf("\nReleasing lock %llu on %s. Awaiting lock: %d - ", lid, id.c_str(), lock->awaiting_lock);
 
   lock->holder = FREE;
 
@@ -148,9 +143,10 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
     return lock_protocol::OK;
   } else {
     // either the lock wasnt revoked, or someone on the client still wants it
-    tprintf("\nLock %llu released. Awaiting lock: %d. ", lid, lock->awaiting_lock);
+    tprintf("\nLock %llu released on %s. Awaiting lock: %d. ", lid, id.c_str(), lock->awaiting_lock);
 
     if (lock->awaiting_lock != 0) {
+      tprintf("\nLock %llu released. Signaling clients: %d - ", lid, lock->awaiting_lock);
       // wake up any waiting clients
       lock->flag.signalAll();
     }
@@ -182,16 +178,28 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     // the server until it is done with it
     new_lock->holder = FREE;
     new_lock->revoked = true;
+    new_lock->owned = true;
+    new_lock->awaiting_lock=0;
 
     lock_list[lid] = new_lock;
+
+    sync_root.unlock();
+    return lock_protocol::OK;
   }
 
   lock_info* lock = lock_list[lid];
 
-  if (lock->holder == FREE && lock->awaiting_lock == 0) {
+  if (lock->holder == FREE && lock->awaiting_lock == 0 && lock->acquiring == false) {
     lock->owned = false;
+    lock->revoked = false;
 
-    tprintf("\nLock %llu revoked immediatly, no holders..", lid);
+    if (lock->acquiring) {
+      tprintf("\n!!!!!!!!!!!!!!!-------!!!!!!!!!!!!!!!!!!!!!----!!!!!");
+      tprintf("\nLock acquiring but awaiting_lock set to 0");
+      tprintf("\n!!!!!!!!!!!!!!!-------!!!!!!!!!!!!!!!!!!!!!----!!!!!");
+    }
+
+    tprintf("\nLock %llu revoked immediatly from %s, no holders..", lid, id.c_str());
 
     sync_root.unlock();
 
@@ -204,7 +212,11 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     // to actually return the lock to the server
     lock->revoked = true;
 
-    tprintf("\nLock %llu revoke pending. %s and %d waiting.", lid, lock->holder==FREE ? "FREE" :  "NOT FREE", lock->awaiting_lock);
+    tprintf("\nLock %llu revoke pending. %s and %s and %d waiting.",
+      lid,
+      lock->holder==FREE ? "FREE" :  "NOT FREE",
+      lock->owned ==true ? "OWNED" : "NOT OWNED",
+      lock->awaiting_lock);
 
     sync_root.unlock();
 
@@ -219,9 +231,13 @@ lock_client_cache::retry_handler(lock_protocol::lockid_t lid,
   // if this is called, it means the sever is signaling that we have the lock
   sync_root.lock();
 
-  tprintf("\nLock %llu has been granted to client via RETRY.", lid);
-
   lock_info* lock = lock_list[lid];
+
+  tprintf("\nLock %llu has been granted to client %s via RETRY and status %s and %s. Awaiting lock: %d - ", lid,
+    id.c_str(),
+    lock->holder==FREE ? "FREE" :  "NOT FREE",
+    lock->owned ==true ? "OWNED" : "NOT OWNED",
+    lock->awaiting_lock);
 
   lock->acquiring = false;
   lock->owned = true;
@@ -256,11 +272,20 @@ void lock_client_cache::acquire_lock(lock_protocol::lockid_t lid) {
 
   sync_root.lock();
 
+  if (lock->owned == true) {
+    // ok it looks like a retry came in after us, we dont need to do anything
+    lock->flag.signalAll();
+    tprintf("\nLock %llu has been granted to %s client. RETRY beat ACQUIRE.", lid, id.c_str());
+    sync_root.unlock();
+    return;
+  }
   // if we get an ok, we have the lock, if we dont
   // it means that we have to wait
   if (ret == lock_protocol::OK) {
+    tprintf("\nLock %llu has been granted to client %s via ACQUIRE.", lid, id.c_str());
     lock->acquiring = false;
     lock->owned = true;
+    lock->flag.signalAll();
   } else {
     lock->acquiring = true;
     lock->owned = false;

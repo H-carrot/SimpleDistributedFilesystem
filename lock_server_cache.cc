@@ -73,7 +73,7 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
        // see if anyone has told the current holder to give the lock back
     if (lock->revoked == false)
     {
-       tprintf("\nLock %llu is TAKEN sending REVOKE to %s - queueing %s - ", lid, lock->holder.c_str(), id.c_str());
+       tprintf("\nLock %llu is TAKEN queueing %s - Queue length: %lu -", lid, id.c_str(), lock->queue.size());
 
       //lock->revoked = true;
       sync_root.unlock();
@@ -88,9 +88,6 @@ int lock_server_cache::acquire(lock_protocol::lockid_t lid, std::string id,
 
     return lock_protocol::RETRY;
   }
-
-  sync_root.unlock();
-  return lock_protocol::NOENT;
 }
 
 int
@@ -110,6 +107,7 @@ if (lock->queue.size() == 0) {
 
   sync_root.unlock();
 } else {
+  std::string old_holder = lock->holder;
   std::string holder = lock->queue.front();
   lock->queue.pop_front();
   lock->holder = holder;
@@ -119,10 +117,16 @@ if (lock->queue.size() == 0) {
   // call retry here, which in this model is actually granting the lock to the client
   handle h(holder);
 
-  tprintf("\nLock %llu is FREE sending RETRY to  %s - ", lid, holder.c_str());
+  tprintf("\nLock %llu is FREE returned by %s sending RETRY to  %s -  Queue length: %lu - ", lid, old_holder.c_str(), holder.c_str(), lock->queue.size());
+
+  lock_protocol::status ret;
 
   if (h.safebind())
-    h.safebind()->call(rlock_protocol::retry, lid, r);
+    ret=h.safebind()->call(rlock_protocol::retry, lid, r);
+
+  if (!h.safebind() || ret != lock_protocol::OK) {
+    tprintf("\nSafebind failed!!!!!!!!!!!!!!!!")
+  }
 }
 
   return lock_protocol::OK;
@@ -195,8 +199,16 @@ lock_server_cache::revoker(void) {
 
       tprintf("\nSending revoke to %s for lock %llu.", request.holder.c_str(), request.lid);
 
+      lock_protocol::status ret;
+
       if (h.safebind())
-        h.safebind()->call(rlock_protocol::revoke, request.lid, r);
+        ret = h.safebind()->call(rlock_protocol::revoke, request.lid, r);
+
+      if (!h.safebind() || ret != lock_protocol::OK) {
+         tprintf("\nSafebind failed - revoking!!!!!!!!!!!!!!!!");
+      }
+
+      tprintf("\nRevoke send sucessfully to %s for lock %llu.", request.holder.c_str(), request.lid);
     }
 
     revoke_lock.unlock();
