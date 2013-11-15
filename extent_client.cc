@@ -1,6 +1,7 @@
 // RPC stubs for clients to talk to extent_server
 
 #include "extent_client.h"
+#include "tprintf.h"
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
@@ -162,6 +163,8 @@ extent_client::flush(extent_protocol::extentid_t eid) {
   extent_protocol::status ret = extent_protocol::OK;
   int r;
 
+  tprintf("Flushing extent id: %llu\n", eid);
+
   sync_root.lock();
 
   // make sure we have the extent first, not that we should be doing a blind write
@@ -178,7 +181,11 @@ extent_client::flush(extent_protocol::extentid_t eid) {
 
   if (extent->is_dirty) {
     // ok we need to flush this bad boy back
-    cl->call(extent_protocol::put, extent->buf, r);
+    tprintf("Flushing %llu...\n", eid);
+    cl->call(extent_protocol::put, eid, extent->buf, r);
+    tprintf("Flushed %llu.", eid);
+  } else {
+    tprintf("Flushed - not dirty.\n");
   }
 
   // at this point we have either flushed it or dont need to because it wasnt dirty

@@ -16,10 +16,20 @@
 #define ELEMENTSEPERATOR '/'
 #define INUMSEPERATOR    '@'
 
+class lock_releaser : public lock_release_user {
+public:
+  lock_releaser(extent_client*);
+  virtual ~lock_releaser() {};
+  void dorelease(lock_protocol::lockid_t);
+
+private:
+  extent_client* ec;
+};
 
 class yfs_client {
   extent_client       *ec;
   lock_client_cache   *lc;
+  lock_releaser       *lu;
  public:
 
   typedef unsigned long long inum;

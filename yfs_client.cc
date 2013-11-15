@@ -2,6 +2,7 @@
 #include "extent_client.h"
 #include "lock_client_cache.h"
 #include "StringTokenizer.h"
+#include "tprintf.h"
 #include "yfs_client.h"
 
 #include <fcntl.h>
@@ -16,7 +17,8 @@
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
   ec = new extent_client(extent_dst);
-  lc = new lock_client_cache(lock_dst);
+  lu = new lock_releaser(ec);
+  lc = new lock_client_cache(lock_dst, lu);
   srandom(getpid());
 }
 
@@ -438,4 +440,13 @@ std::string yfs_client::writeDirent(std::list<yfs_client::dirent*>* entries) {
   }
 
   return stream.str();
+}
+
+lock_releaser::lock_releaser(extent_client* _ec) {
+  ec = _ec;
+}
+
+void lock_releaser::dorelease(lock_protocol::lockid_t lid) {
+  tprintf("Attempting flush 2\n");
+  ec->flush(lid);
 }

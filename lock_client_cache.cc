@@ -129,7 +129,8 @@ lock_client_cache::release(lock_protocol::lockid_t lid)
     sync_root.unlock();
 
     tprintf("\nLock %llu revoked by server, no one waiting, returning. ", lid);
-
+    tprintf("Attempting flush 1\n");
+    lu->dorelease(lid);
     cl->call(lock_protocol::release, lid, id, r);
 
     tprintf("\nLock %llu returned to server. ", lid);
@@ -194,6 +195,8 @@ lock_client_cache::revoke_handler(lock_protocol::lockid_t lid,
     }
 
     tprintf("\nLock %llu revoked immediatly from %s, no holders..", lid, id.c_str());
+    tprintf("Attempting flush 1\n");
+    lu->dorelease(lid);
 
     sync_root.unlock();
 
