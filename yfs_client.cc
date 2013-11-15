@@ -447,6 +447,5 @@ lock_releaser::lock_releaser(extent_client* _ec) {
 }
 
 void lock_releaser::dorelease(lock_protocol::lockid_t lid) {
-  tprintf("Attempting flush 2\n");
   ec->flush(lid);
 }

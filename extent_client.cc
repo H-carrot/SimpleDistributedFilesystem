@@ -25,22 +25,29 @@ extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
 {
   extent_protocol::status ret = extent_protocol::OK;
 
+  tprintf("Getting extent: %llu\n", eid);
+
   sync_root.lock();
 
   // let's see if we have a copy of the lock being requested
   std::map<extent_protocol::extentid_t, cached_extent_info*>::iterator extent_list_it = extent_list.find(eid);
 
   if (extent_list_it == extent_list.end()) {
-    // ok we dont have a copy, go request it from the server
-    ret = cl->call(extent_protocol::get, eid, buf);
+    tprintf("Extent %llu doesnt exist locally, getting it...\n", eid);
 
     cached_extent_info* new_extent = new cached_extent_info();
+
+    // ok we dont have a copy, go request it from the server
+    ret = cl->call(extent_protocol::get, eid, buf);
 
     new_extent->eid = eid;
     cl->call(extent_protocol::getattr, eid, new_extent->attr);
     new_extent->is_dirty = false;
-
     new_extent->attr.atime = time(NULL);
+
+    new_extent->buf=buf;
+
+    tprintf("Got extent %llu, value: %s\n", eid, new_extent->buf.c_str());
 
     extent_list[eid] = new_extent;
 
@@ -49,6 +56,8 @@ extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
     cached_extent_info* extent = extent_list[eid];
     
     buf = extent->buf;
+
+    tprintf("Extent %llu exists locally, value: %s\n", eid, buf.c_str());
 
     // update the access time
     extent->attr.atime = time(NULL);
@@ -74,7 +83,7 @@ extent_client::getattr(extent_protocol::extentid_t eid,
     cached_extent_info* new_extent = new cached_extent_info();
 
     // ok we dont have a copy, go request it from the server
-    ret = cl->call(extent_protocol::get, eid, new_extent->attr);
+    ret = cl->call(extent_protocol::get, eid, new_extent->buf);
 
     new_extent->eid = eid;
     ret = cl->call(extent_protocol::getattr, eid, new_extent->attr);
@@ -104,14 +113,13 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
   std::map<extent_protocol::extentid_t, cached_extent_info*>::iterator extent_list_it = extent_list.find(eid);
 
   if (extent_list_it == extent_list.end()) {
-    // ok we dont have a copy, go request it from the server
-    ret = cl->call(extent_protocol::get, eid, buf);
-
     cached_extent_info* new_extent = new cached_extent_info();
+
+    // ok we dont have a copy, go request it from the server
+    cl->call(extent_protocol::get, eid, new_extent->buf);
 
     new_extent->eid = eid;
     ret = cl->call(extent_protocol::getattr, eid, new_extent->attr);
-    new_extent->is_dirty = true;
 
     extent_list[eid] = new_extent;
   }
@@ -120,6 +128,8 @@ extent_client::put(extent_protocol::extentid_t eid, std::string buf)
   cached_extent_info* extent = extent_list[eid];
 
   extent->is_dirty = true;
+
+  tprintf("Updating extent %llu old value: %s, new value: %s\n", eid, extent->buf.c_str(), buf.c_str());
 
   // now let's update it's attributes
   extent->buf = buf;
@@ -141,6 +151,8 @@ extent_client::remove(extent_protocol::extentid_t eid)
   int r;
 
   sync_root.lock();
+
+  tprintf("Removing extent %llu\n", eid);
 
   std::map<extent_protocol::extentid_t, cached_extent_info*>::iterator extent_list_it = extent_list.find(eid);
 
@@ -181,7 +193,7 @@ extent_client::flush(extent_protocol::extentid_t eid) {
 
   if (extent->is_dirty) {
     // ok we need to flush this bad boy back
-    tprintf("Flushing %llu...\n", eid);
+    tprintf("Flushing %llu... new value: %s\n", eid, extent->buf.c_str());
     cl->call(extent_protocol::put, eid, extent->buf, r);
     tprintf("Flushed %llu.", eid);
   } else {
