@@ -1,13 +1,15 @@
-#include "rpc.h"
-#include <arpa/inet.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
+#include "jsl_log.h"
 #include "lock_server_cache.h"
 #include "paxos.h"
+#include "rpc.h"
 #include "rsm.h"
 
-#include "jsl_log.h"
+#include <arpa/inet.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 
 // Main loop of lock_server
 
@@ -45,10 +47,18 @@ main(int argc, char *argv[])
   // server and the RSM.  In Lab 6, we disable the lock server and
   // implement Paxos.  In Lab 7, we will make the lock server use your
   // RSM layer.
-#define	RSM
+//#define	RSM
 #ifdef RSM
    rsm rsm(argv[1], argv[2]);
 #endif // RSM
+
+#ifndef RSM
+  lock_server_cache ls;
+  rpcs server(atoi(argv[1]), count);
+  server.reg(lock_protocol::acquire, &ls, &lock_server_cache::acquire);
+  server.reg(lock_protocol::release, &ls, &lock_server_cache::release);
+  server.reg(lock_protocol::stat, &ls, &lock_server_cache::stat);
+#endif
 
 
   while(1)
