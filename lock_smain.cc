@@ -47,7 +47,7 @@ main(int argc, char *argv[])
   // server and the RSM.  In Lab 6, we disable the lock server and
   // implement Paxos.  In Lab 7, we will make the lock server use your
   // RSM layer.
-//#define	RSM
+#define	RSM
 #ifdef RSM
    rsm rsm(argv[1], argv[2]);
 #endif // RSM
