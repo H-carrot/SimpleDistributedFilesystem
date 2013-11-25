@@ -159,7 +159,7 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
   prop_t highest_n_a = {0, std::string()};
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
-    int ret;
+    int ret = rpc_const::timeout_failure;
     handle h(nodes[i]);
     rpcc *cl = h.safebind();
 
@@ -292,7 +292,6 @@ acceptor::preparereq(std::string src, paxos_protocol::preparearg a,
   // You fill this in for Lab 6
   // Remember to initialize *BOTH* r.accept and r.oldinstance appropriately.
   // Remember to *log* the proposal if the proposal is accepted.
-  ScopedLock sl(&pxs_mutex);
 
 if (instance_h >= a.instance) {
     r.accept = false;
@@ -320,7 +319,6 @@ acceptor::acceptreq(std::string src, paxos_protocol::acceptarg a, bool &r)
 {
   // You fill this in for Lab 6
   // Remember to *log* the accept if the proposal is accepted.
-  ScopedLock sl(&pxs_mutex);
 
   if (instance_h >= a.instance) {
     tprintf("acceptor::acceptreq got an old instance from %s\n", src.c_str());
