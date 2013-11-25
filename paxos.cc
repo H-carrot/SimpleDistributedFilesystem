@@ -159,7 +159,7 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
   prop_t highest_n_a = {0, std::string()};
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
-    int ret = rpc_const::timeout_failure;
+    int ret =rpc_const::timeout_failure;
     handle h(nodes[i]);
     rpcc *cl = h.safebind();
 
