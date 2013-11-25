@@ -168,6 +168,7 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
       ret = cl->call(paxos_protocol::preparereq, me, args, response, rpcc::to(1000));
     } else {
       tprintf("Unable to bind to client\n");
+      continue;
     }
 
     if (ret == paxos_protocol::OK) {
@@ -177,8 +178,8 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
         return false;
       } else if (response.accept) {
         if (response.n_a > highest_n_a) {
-          v = response.v_a;
           highest_n_a = response.n_a;
+          v = response.v_a;
         }
         accepts.push_back(nodes[i]);
 
@@ -215,6 +216,7 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts,
       ret = cl->call(paxos_protocol::acceptreq, me, args, response, rpcc::to(1000));
     } else {
       tprintf("Unable to bind to client\n");
+      continue;
     }
 
     if (ret == paxos_protocol::OK) {
