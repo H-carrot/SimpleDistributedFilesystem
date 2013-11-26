@@ -153,10 +153,15 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
   // You fill this in for Lab 6
   // Note: if got an "oldinstance" reply, commit the instance using
   // acc->commit(...), and return false.
-  paxos_protocol::preparearg args = {instance, my_n};
+  paxos_protocol::preparearg args;
   paxos_protocol::prepareres response;
 
-  prop_t highest_n_a = {0, std::string()};
+  args.instance = instance;
+  args.n = my_n;
+
+  prop_t highest_seen;
+  highest_seen.n = 0;
+  highest_seen.m = std::string();
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
     int ret;
@@ -185,8 +190,8 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
         acc->commit(instance, response.v_a);
         return false;
       } else if (response.accept) {
-        if (response.n_a > highest_n_a) {
-          highest_n_a = response.n_a;
+        if (response.n_a > highest_seen) {
+          highest_seen = response.n_a;
           v = response.v_a;
         }
         accepts.push_back(nodes[i]);
@@ -213,7 +218,11 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts,
         std::vector<std::string> nodes, std::string v)
 {
   bool response;
-  paxos_protocol::acceptarg args = {instance, my_n, v};
+  paxos_protocol::acceptarg args;
+
+  args.instance = instance;
+  args.n = my_n;
+  args.v=v;
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
     int ret;
@@ -252,7 +261,11 @@ proposer::decide(unsigned instance, std::vector<std::string> accepts,
         std::string v)
 {
   // You fill this in for Lab 6
-  paxos_protocol::decidearg args = {instance, v};
+  paxos_protocol::decidearg args;
+
+  args.instance = instance;
+  args.v = v;
+
   int response;
 
   for (unsigned int i = 0; i < accepts.size(); i++) {
