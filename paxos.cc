@@ -159,15 +159,23 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
   prop_t highest_n_a = {0, std::string()};
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
-    int ret =rpc_const::timeout_failure;
+    int ret;
     handle h(nodes[i]);
+
+    pthread_mutex_unlock(&pxs_mutex);
+
     rpcc *cl = h.safebind();
 
     if (cl) {
       // ok the connection went through
       ret = cl->call(paxos_protocol::preparereq, me, args, response, rpcc::to(1000));
+
+      pthread_mutex_lock(&pxs_mutex);
     } else {
       tprintf("Unable to bind to client\n");
+
+      // relock
+      pthread_mutex_lock(&pxs_mutex);
       continue;
     }
 
@@ -185,6 +193,7 @@ proposer::prepare(unsigned instance, std::vector<std::string> &accepts,
 
         tprintf("Proposer prepare accepted.\n");
       } else {
+        // not sure if this can happen...
         tprintf("Proposer prepare rejected.\n");
       }
     } else {
@@ -204,18 +213,23 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts,
         std::vector<std::string> nodes, std::string v)
 {
   bool response;
-  paxos_protocol::acceptarg args = {instance, my_n};
+  paxos_protocol::acceptarg args = {instance, my_n, v};
 
   for (unsigned int i = 0; i < nodes.size(); i++) {
     int ret;
     handle h(nodes[i]);
+
+    pthread_mutex_unlock(&pxs_mutex);
+
     rpcc *cl = h.safebind();
 
     if (cl) {
       // ok the connection went through
       ret = cl->call(paxos_protocol::acceptreq, me, args, response, rpcc::to(1000));
+      pthread_mutex_lock(&pxs_mutex);
     } else {
       tprintf("Unable to bind to client\n");
+      pthread_mutex_lock(&pxs_mutex);
       continue;
     }
 
@@ -226,7 +240,6 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts,
         tprintf("Proposer::Accept got accept\n");
       } else
       {
-
         tprintf("Proposer::Accept rejected string: %s", v.c_str());
       }
     }
@@ -245,17 +258,22 @@ proposer::decide(unsigned instance, std::vector<std::string> accepts,
   for (unsigned int i = 0; i < accepts.size(); i++) {
     int ret;
     handle h(accepts[i]);
+
+    pthread_mutex_unlock(&pxs_mutex);
+
     rpcc *cl = h.safebind();
 
-    ret = cl->call(paxos_protocol::decidereq, me, args, response, rpcc::to(1000));
+    if (cl) {
+      // ok the connection went through
+      ret = cl->call(paxos_protocol::decidereq, me, args, response, rpcc::to(1000));
+      pthread_mutex_lock(&pxs_mutex);
+    } else {
+      tprintf("Unable to bind to client\n");
+      pthread_mutex_lock(&pxs_mutex);
+      continue;
+    }
 
     tprintf("Proposer::decide status: %d\n", ret);
-
-    if (ret == paxos_protocol::OK) {
-      continue;
-    } else {
-
-    }
   }
 
 return;
@@ -295,22 +313,27 @@ acceptor::preparereq(std::string src, paxos_protocol::preparearg a,
   // Remember to initialize *BOTH* r.accept and r.oldinstance appropriately.
   // Remember to *log* the proposal if the proposal is accepted.
 
-if (instance_h >= a.instance) {
+  pthread_mutex_lock(&pxs_mutex);
+
+  if (instance_h >= a.instance) {
     r.accept = false;
-    r.n_a = n_a;
+    // r.n_a = n_a;
     r.oldinstance = true;
     r.v_a = values[a.instance];
   } else if (a.n > n_h) {
-    l->logprop(n_h);
     n_h = a.n;
     r.accept = true;
     r.n_a = n_a;
     r.oldinstance = false;
     r.v_a = v_a;
+
+    l->logprop(n_h);
   } else {
-    r.oldinstance = false;
     r.accept = false;
+    r.oldinstance = false;
   }
+
+  pthread_mutex_unlock(&pxs_mutex);
 
   return paxos_protocol::OK;
 }
@@ -322,15 +345,21 @@ acceptor::acceptreq(std::string src, paxos_protocol::acceptarg a, bool &r)
   // You fill this in for Lab 6
   // Remember to *log* the accept if the proposal is accepted.
 
-  if (instance_h >= a.instance) {
-    tprintf("acceptor::acceptreq got an old instance from %s\n", src.c_str());
-    r = false;
-  } else {
-    l->logaccept(n_a, v_a);
+  pthread_mutex_lock(&pxs_mutex);
+
+  // if larger than highest proposal accepted so far, accept it
+  if (a.n >= n_h) {
     n_a = a.n;
     r = true;
     v_a = a.v;
+
+    l->logaccept(n_a, v_a);
+  } else {
+    tprintf("acceptor::acceptreq not accpeted, less than highest so far %s\n", src.c_str());
+    r = false;
   }
+
+  pthread_mutex_unlock(&pxs_mutex);
 
   return paxos_protocol::OK;
 }
