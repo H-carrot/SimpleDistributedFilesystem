@@ -1,7 +1,8 @@
 #include "rpc.h"
 #include <arpa/inet.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "extent_server.h"
 
 // Main loop of extent server
