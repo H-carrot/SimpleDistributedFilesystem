@@ -1,9 +1,11 @@
-#include "rsm_client.h"
-#include <vector>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <handle.h>
 #include "lang/verify.h"
+#include "rsm_client.h"
+
+#include <arpa/inet.h>
+#include <handle.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <vector>
 
 
 rsm_client::rsm_client(std::string dst)
