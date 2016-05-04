@@ -3,6 +3,7 @@
 #define base_lock_h
 
 #include <pthread.h>
+#include <sys/time.h>
 
 namespace base {
 
@@ -22,10 +23,23 @@ namespace base {
 
 class ConditionVar {
   public:
+
     ConditionVar()          { pthread_cond_init(&cv_, NULL); }
     ~ConditionVar()         { pthread_cond_destroy(&cv_); }
 
-    void wait(Mutex* mutex) { pthread_cond_wait(&cv_, &(mutex->m_)); }
+    void wait(Mutex* mutex) {
+      struct timeval tv;
+      struct timespec ts;
+      int nTimeOut = 50;
+
+      gettimeofday(&tv, NULL);
+      ts.tv_sec = time(NULL) + nTimeOut / 1000;
+      ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (nTimeOut % 1000);
+      ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+      ts.tv_nsec %= (1000 * 1000 * 1000);
+
+      pthread_cond_timedwait(&cv_, &(mutex->m_), &ts);
+    }
     void signal()           { pthread_cond_signal(&cv_); }
     void signalAll()        { pthread_cond_broadcast(&cv_); }
 

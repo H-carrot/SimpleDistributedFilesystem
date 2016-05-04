@@ -19,7 +19,6 @@ struct lock_info {
   volatile int clt;  // the client holding the lock
 };
 
-
 class lock_server {
 
   protected:
